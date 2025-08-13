@@ -12,9 +12,13 @@ pip install git+https://github.com/nikpau/mmgdynamics
 
 ## Dynamics
 
-The system's dynamics can be found in the `dynamics.py` file. The model can be used straight out of the box with any vessel in the `calibrated_vessels.py` file. If you want to embed this model into your framework, use the `step()` or the `pstep()` function. The `step()` function takes in initial values of surge, sway, and yaw rate, as well as parameters about the simulated vessel and optionally environmental disturbances such as water depth, wind speed, and direction, current speed, and direction. It returns the raw first derivatives of surge sway and yaw rates, which must be further post-processes. 
+The MMG dynamics model can be used straight out of the box with any vessel listed in `calibrated_vessels.py`.
+For most applications, you’ll want to use the `pstep()` function. This high-level method takes the vessel’s current global position, surge, sway, and yaw rate, along with optional environmental disturbances (water depth, wind speed/direction, current speed/direction). It directly returns the updated earth-fixed position and the new surge, sway, and yaw rates. This makes it the easiest entry point for integrating the MMG dynamics into your project.
 
-If, instead, you want to directly return the new position in the earth-fixed position together with the new surge, sway, and yaw rates, call the `pstep()` function. It additionally takes the global position of the vessel as an input. This function is easy to use and will likely be the starting point for integrating the MMG dynamics into your project. See the example below on how to use the model
+If you need finer control over the calculations, use the lower-level `step()` function. This method takes the initial surge, sway, and yaw rate, plus vessel parameters and optional disturbances, and returns the raw first derivatives of these states. You’ll need to handle the integration and post-processing yourself.
+
+The underlying dynamics are implemented in `dynamics.py`.
+See the example below for how to call the model in your code.
 
 ```python
 import math

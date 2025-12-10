@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmgdynamics"
+version = "1.0.7"
+authors = [
+    { name = "Niklas Paulig", email = "niklas.paulig@tu-dresden.de" },
+]
+description = "MMG standard model for ship maneuvering"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy>=1.19",
+    "scipy",
+    "matplotlib>=3.5.3",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/nikpau/mmgdynamics"
+
+[tool.setuptools.packages.find]
+where = ["src"]

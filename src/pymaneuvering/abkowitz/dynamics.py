@@ -1,0 +1,316 @@
+import math
+import numpy as np
+import numpy.typing as npt
+from warnings import warn
+from typing import Callable, Optional
+
+from ..utils import common as cmn
+
+"""
+This Abkowitz-type dynamics module follows the seminar paper
+by Youjun Yang and Ould el Moctar (2024)
+https://doi.org/10.1016/j.oceaneng.2024.116927
+"""
+
+# Type aliases to make function signatures clearer
+h_over_T = float
+unit_type = float
+
+def _shallow_water_correction_factory(
+    alpha: float, 
+    a: float, 
+    b: float, 
+    c: float) -> Callable[[h_over_T, unit_type], float]:
+
+    """
+    Factory from Eq (8) to create the shallow water correction functions
+    of Table 3 from Youjun Yang and Ould el Moctar (2024).
+    """
+    def correction(h_over_T: float, x: float) -> float:
+        """Shallow water correction polynomial
+
+        Args:
+            h_over_T (float): Water depth to vessel draft ratio
+            x (float): Generic variable (e.g., speed)
+
+        Returns:
+            float: Correction factor
+        """
+        return (a*x**2 + b*x + c) * h_over_T**(-alpha) + 1.0
+
+    return correction
+
+# Create shallow water correction functions
+f_Xu_dot = _shallow_water_correction_factory(alpha=1.717, a=0.0,      b=0.0,     c=3.552)
+f_Xu     = _shallow_water_correction_factory(alpha=3.760, a=0.186,    b=1.013,   c=1.423)
+f_Xv     = _shallow_water_correction_factory(alpha=3.661, a=-664.667, b=0.0,     c=21.096)
+f_Xvr    = _shallow_water_correction_factory(alpha=2.615, a=-52.017,  b=-18.278, c=10.088)
+f_Xd     = _shallow_water_correction_factory(alpha=1.760, a=-0.369,   b=-0.865,  c=-0.264)
+
+f_Yv_dot = _shallow_water_correction_factory(alpha=2.809, a=0.0,      b=0.0,     c=4.933)
+f_Yr_dot = _shallow_water_correction_factory(alpha=2.847, a=0.0,      b=0.0,     c=4.297)
+f_Yv     = _shallow_water_correction_factory(alpha=4.315, a=96.490,   b=24.697,  c=8.843)
+f_Yr     = _shallow_water_correction_factory(alpha=6.785, a=17.440,   b=30.944,  c=7.680)
+f_Yvr    = _shallow_water_correction_factory(alpha=6.003, a=-239.093, b=218.306, c=148.738)
+f_Yd     = _shallow_water_correction_factory(alpha=4.288, a=-1.107,   b=-2.781,  c=1.178)
+
+f_Nv_dot = _shallow_water_correction_factory(alpha=2.846, a=0.0,      b=0.0,     c=4.292)
+f_Nr_dot = _shallow_water_correction_factory(alpha=2.724, a=0.0,      b=0.0,     c=2.936)
+f_Nv     = _shallow_water_correction_factory(alpha=2.966, a=47.870,   b=0.0,     c=6.268)
+f_Nr     = _shallow_water_correction_factory(alpha=4.353, a=1.267,    b=2.962,   c=3.615)
+f_Nvr    = _shallow_water_correction_factory(alpha=4.721, a=0.0,      b=0.0,     c=68.509)
+f_Nd     = _shallow_water_correction_factory(alpha=4.720, a=-1.218,   b=-3.050,  c=0.167)
+
+class AbkowitzModel(cmn.Maneuvervable):
+    """
+    Stateless wrapper for an Abkowitz-type dynamics model 
+    following Yang and el Moctar (2024) for shallow water 
+    conditions for inland vessels.
+    
+    :var vessel: AbkowitzVessel
+        Vessel parameters according to the Abkowitz model.
+    """
+
+    def __init__(self, vessel: cmn.AbkowitzVessel):
+        self.vessel = vessel
+
+    def dynamics(
+        self,
+        X: np.ndarray, 
+        psi:float,
+        delta: float, 
+        h: float,
+        fl_psi: float | None, 
+        fl_vel: float | None) -> np.ndarray:
+        """System of ODEs after Yang and el Moctar (2024)
+
+        Args:
+            X (np.ndarray): 
+                Initial values (u, v, r) at current timestep
+            psi (float): 
+                vessel heading in the global frame
+            delta (float): 
+                Rudder angle [rad]
+            h (float): 
+                Water depth [m]
+            fl_psi (float): 
+                Attack angle of current relative
+                longitudinal axis of motion [rad]
+            fl_vel (float): 
+                Velocity of current [m/s]
+            w_vel (float): 
+                Wind velocity [m/s] (inactive, only for signature matching)
+            beta_w (float): 
+                Wind attack angle relative to heading [rad] (inactive, only for signature matching)
+
+        Returns:
+            np.ndarray: Motion derivatives (u_dot, v_dot, r_dot)
+        """
+        
+
+        # Shorten the parameter dict to avoid clutter
+        p = self.vessel
+
+
+        u, v, r  = X[0], X[1], -X[2]
+
+        # Correct for current if given
+        if fl_vel is not None and fl_psi is not None:
+            u_c = fl_vel * math.cos(fl_psi - psi - math.pi)
+            v_c = fl_vel * math.sin(fl_psi - psi - math.pi)
+            
+            # Relative velocities
+            u_r = u - u_c
+            v_r = v - v_c
+
+            u = u_r
+            v = v_r
+        
+        # Difference from refernence speed
+        du = u - p.U_0
+
+        # Water depth to draft ratio
+        h_prime = min(h / p.T, 8.00)  # Cap at max value from Yang and el Moctar (2024)
+        
+        # Instantaneous speed
+        U = math.sqrt(u**2 + v**2)
+        
+        # Model forces from Eq (7)
+        # Surge force without added mass couplings
+        F_X = (
+            (p.X_u * du + p.X_uu * du**2) * f_Xu(h_prime, du/U) +
+            (p.X_vv * v**2 + p.X_vvvv * v**4) * f_Xv(h_prime, abs(v/U)) +
+            (p.X_rr * r**2 + p.X_vr * v * r + p.X_vvrr * v**2 * r**2) * f_Xvr(h_prime, abs(v/U)) +
+            (p.X_dd * delta**2 + p.X_udd * du * delta**2) * f_Xd(h_prime, du/U)
+        )
+        
+        # Sway force without added mass couplings
+        F_Y = (
+            (p.Y_v * v + p.Y_vvv * v**3) * f_Yv(h_prime, abs(v/U)) +
+            (p.Y_r * r + p.Y_rrr * r**3) * f_Yr(h_prime, abs(r* p.L / U)) +
+            (p.Y_vrr * v * r**2 + p.Y_vvr * v**2 * r) * f_Yvr(h_prime, abs(v/U)) +
+            (p.Y_d * delta + p.Y_ddd * delta**3 + p.Y_ud * du * delta + p.Y_uddd * du * delta**3) * f_Yd(h_prime, du/U)
+        )
+        
+        # Yaw moment without added mass couplings
+        F_N = (
+            (p.N_v * v + p.N_vvv * v**3 + p.N_vrr * v * r**2) * f_Nv(h_prime, abs(v/U)) +
+            (p.N_r * r + p.N_rrr * r**3) * f_Nr(h_prime, abs(r* p.L / U)) +
+            (p.N_vvr * v**2 * r) * f_Nvr(h_prime, abs(v/U)) +
+            (p.N_d * delta + p.N_ddd * delta**3 + p.N_ud * du * delta + p.N_uddd * du * delta**3) * f_Nd(h_prime, du/U)
+        )
+
+        # Dimensionalizers
+        D_FORCE  = 0.5 * p.rho * U**2 * p.L**2
+        D_MOMENT = 0.5 * p.rho * U**2 * p.L**3
+
+        
+        # Re-dimensionalize forces and moments
+        F_X = F_X * D_FORCE
+        F_Y = F_Y * D_FORCE
+        F_N = F_N * D_MOMENT
+        
+        # Moment of inertia in yaw from radius of gyration
+        I_zz = p.m * p.r_zz**2
+        
+        # Re-dimensionalize added mass couplings
+        am_surge  = p.X_udot * 0.5 * p.rho * (p.L**3) * f_Xu_dot(h_prime, 0)
+        am_sway_v = p.Y_vdot * 0.5 * p.rho * (p.L**3) * f_Yv_dot(h_prime, 0)
+        am_sway_r = p.Y_rdot * 0.5 * p.rho * (p.L**4) * f_Yr_dot(h_prime, 0)
+        am_yaw_v  = p.N_vdot * 0.5 * p.rho * (p.L**4) * f_Nv_dot(h_prime, 0)  
+        am_yaw_r  = p.N_rdot * 0.5 * p.rho * (p.L**5) * f_Nr_dot(h_prime, 0)
+        
+        # Left-hand side matrix from Eq (6) plus added mass terms
+        # minus all non-derivative forces and correction for shallow water
+        M = np.array(
+            [
+                [p.m - am_surge, 0.0,                    0.0                    ],
+                [0.0,            p.m - am_sway_v,        p.m * p.x_G - am_sway_r],
+                [0.0,            p.m * p.x_G - am_yaw_v, I_zz - am_yaw_r        ]
+            ]
+        )
+        
+        # Right-hand side from Eq (6) plus all non-derivative forces
+        F = np.array(
+            [
+                F_X + p.m * v * r + p.m * p.x_G * (r**2),
+                F_Y - p.m * u * r,
+                F_N - p.m * p.x_G * u * r
+            ]
+        )
+        
+        return np.linalg.solve(M, F)
+
+    def step(
+        self,
+        *,
+        X: np.ndarray,
+        dT: float,
+        delta: float,
+        psi: float,
+        water_depth: float,
+        fl_psi: Optional[float] = None,
+        fl_vel: Optional[float] = None,
+    ) -> np.ndarray:
+        """Solve the MMG system for a given vessel for an arbitrarily long timestep
+
+        Args:
+            X (np.ndarray): Initial values: np.array([u,v,r])
+            delta (float): Rudder angle in [rad]
+            fl_psi (float): Attack angle of current relative to heading [rad]
+            fl_vel (Optional[float]): Fluid velocity (Current velocity)
+            w_vel (Optional[float]): Wind velocity
+            beta_w (Optional[float]): Wind attack angle
+            water_depth( Optional[float]): Water depth if vessel is simulated in shallow water
+
+        Raises:
+            LogicError: - If the water depth is less than the
+                        ships draft. Ship would run aground. It is recommended
+                        to have at least (1.2*draft) meters of water under the vessel.
+                        - If a current velocity has been set but no
+                        attack angle for it.
+
+        Returns:
+            Derivatives of u,v and r in the vessel fixed coordinate system
+        """
+
+        if fl_vel is not None and fl_psi is None:
+            raise cmn.LogicError(
+                "No current direction specified. Use the `fl_psi` keyword to set it."
+            )
+        if fl_vel is None and fl_psi is not None:
+            warn(
+                "Current attack angle is given but current velocity is "
+                "turned off. Attack angle is ignored."
+            )
+
+        # Correct for shallow water if a water depth is given.
+        # If none is given, open water with infinite depth is assumed
+        if water_depth is not None:
+            if water_depth < self.vessel.T:
+                raise cmn.LogicError(
+                    "Water depth cannot be less than ship draft.\n"
+                    f"Water depth: {np.round(water_depth, 3)} | Ship draft: {self.vessel.T}"
+                )
+
+        # Develop equation of motion
+        uvr_dot = self.dynamics(
+            X=X,
+            delta=delta,
+            h=water_depth,
+            psi=psi,
+            fl_psi=fl_psi,
+            fl_vel=fl_vel,
+        )
+
+        # Just return the relevant derivatives
+        return uvr_dot * dT
+
+    def pstep(
+        self,
+        *,
+        X: np.ndarray,
+        pos: cmn.EarthFixedPos,
+        dT: float,
+        delta: float,
+        psi: float,
+        water_depth: float,
+        fl_psi: Optional[float] = None,
+        fl_vel: Optional[float] = None,
+    ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
+        """
+        Same as step but, the transformation of the velocities to the
+        earth fixed coordinate system is done here automatically.
+
+        Returns:
+            np.ndarray: New surge, sway and yaw rate of the vessel (Nu)
+            np.ndarray: New position and heading of the vessel (Eta)
+        """
+        old_uvr = X.copy()
+        old_eta_dot = np.dot(cmn.rotpsi(psi), old_uvr)
+
+        uvr_dot = self.step(
+            X=X,
+            dT=dT,
+            delta=delta,
+            psi=psi,
+            fl_psi=fl_psi,
+            fl_vel=fl_vel,
+            water_depth=water_depth,
+        )
+
+        # Get new velocities in the vessel fixed coordinate system
+        new_uvr = old_uvr + uvr_dot
+
+        # Find new eta_dot via rotation
+        eta_dot_new = np.dot(cmn.rotpsi(psi), new_uvr)
+
+        # Update position in earth fixed coordinate system
+        eta = np.hstack((pos, psi))
+        new_eta = eta + 0.5 * (old_eta_dot + eta_dot_new) * dT
+
+        # Correct for overshooting heading angles
+        new_eta[2] = cmn.angle_to_two_pi(new_eta[2])
+
+        # (array[u,v,r], array[N,E,psi])
+        return new_uvr, new_eta

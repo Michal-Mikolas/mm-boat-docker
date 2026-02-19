@@ -25,7 +25,7 @@ The MMG model requires propeller revolutions (`nps`) as a control input alongsid
 
 ```python
 import math
-from pymaneuvering import Vessel, VTYPE, IntegrationMode
+from pymaneuvering import Vessel, VTYPE
 
 # 1. Initialize an MMG model (e.g., KVLCC2 Tanker)
 vessel_type = VTYPE.KVLCC2_L64 # or KVLCC2_FULL
@@ -63,7 +63,7 @@ The Abkowitz model for inland barges is designed for shallow water operations. I
 
 ```python
 import math
-from pymaneuvering import Vessel, VTYPE, IntegrationMode
+from pymaneuvering import Vessel, VTYPE
 
 # 1. Initialize an Abkowitz model (e.g., GMS-like Inland Barge)
 vessel_type = VTYPE.GMS_LIKE

@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "pymaneuvering"
 version = "2.0.0"
 authors = [
-    { name = "Niklas Paulig", email = "niklas.paulig@tu-dresden.de" },
+    { name = "Niklas Paulig" },
 ]
-description = "A Python implementation of MMG and Abkowitz-type maneuvering models."
+description = "A Python implementation of MMG and Abkowitz-type maneuvering models for inland and ocean vessels."
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",

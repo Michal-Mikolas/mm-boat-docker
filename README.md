@@ -25,11 +25,11 @@ The MMG model requires propeller revolutions (`nps`) as a control input alongsid
 
 ```python
 import math
-import mmgdynamics as mmg
+from pymaneuvering import Vessel, VTYPE, IntegrationMode
 
 # 1. Initialize an MMG model (e.g., KVLCC2 Tanker)
-vessel_type = mmg.VTYPE.KVLCC2_L64 # or KVLCC2_FULL
-model = mmg.Vessel(new_from=vessel_type)
+vessel_type = VTYPE.KVLCC2_L64 # or KVLCC2_FULL
+vessel = Vessel(new_from=vessel_type)
 
 # 2. Set initial state
 pos = [0.0, 0.0]        # North, East [m]
@@ -37,7 +37,7 @@ psi = 0.0               # Heading [rad]
 uvr = [3.85, 0.0, 0.0]  # Surge, Sway, Yaw Rate [m/s, m/s, rad/s]
 
 # 3. Simulate one step (pstep returns updated state)
-new_uvr, new_eta = model.pstep(
+new_uvr, new_eta = vessel.pstep(
     X=uvr,
     pos=pos,
     dT=1.0,                 # Time step [s]
@@ -57,13 +57,17 @@ print(f"New Position: {new_eta[0:2]}")
 
 The Abkowitz model for inland barges is designed for shallow water operations. It **does not** use `nps` (propeller RPM). Instead, the vessel's surge velocity (`u`) is the primary longitudinal state. Shallow water effects are integral to this model, so `water_depth` is a **required** parameter.
 
+> **Note on speed behavior (`U_0`)**  
+> The Abkowitz formulation is calibrated around a **reference speed** `U_0` (see vessel coefficients). Internally, surge-related terms are evaluated using the deviation `du = u - U_0`, so the model is typically most reliable when the simulated surge speed `u` stays reasonably close to `U_0`.  
+> Unlike the MMG model, there is no explicit propulsion control input (`nps`) to command detailed acceleration/deceleration transients directly. As a result, precise speed-up/slow-down maneuvers (as modeled in MMG) are not directly represented in the same way.
+
 ```python
 import math
-import mmgdynamics as mmg
+from pymaneuvering import Vessel, VTYPE, IntegrationMode
 
 # 1. Initialize an Abkowitz model (e.g., GMS-like Inland Barge)
-vessel_type = mmg.VTYPE.GMS_LIKE
-model = mmg.Vessel(new_from=vessel_type)
+vessel_type = VTYPE.GMS_LIKE
+vessel = Vessel(new_from=vessel_type)
 
 # 2. Set initial state
 pos = [0.0, 0.0]
@@ -71,7 +75,7 @@ psi = 0.0
 uvr = [2.5, 0.0, 0.0]  # Surge velocity drives the vessel
 
 # 3. Simulate one step
-new_uvr, new_eta = model.pstep(
+new_uvr, new_eta = vessel.pstep(
     X=uvr,
     pos=pos,
     dT=1.0,

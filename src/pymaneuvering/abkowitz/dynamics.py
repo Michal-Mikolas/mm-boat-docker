@@ -3,7 +3,6 @@ import numpy as np
 from numpy.typing import NDArray
 from warnings import warn
 from typing import Callable, Optional
-from functools import partial
 
 from ..utils import common as cmn
 

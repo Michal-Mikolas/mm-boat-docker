@@ -1,8 +1,9 @@
 import math
 import numpy as np
-import numpy.typing as npt
+from numpy.typing import NDArray
 from warnings import warn
 from typing import Callable, Optional
+from functools import partial
 
 from ..utils import common as cmn
 
@@ -210,33 +211,31 @@ class AbkowitzModel(cmn.Maneuvervable):
         self,
         *,
         X: np.ndarray,
-        dT: float,
         delta: float,
         psi: float,
         water_depth: float,
         fl_psi: Optional[float] = None,
         fl_vel: Optional[float] = None,
     ) -> np.ndarray:
-        """Solve the MMG system for a given vessel for an arbitrarily long timestep
+        """Compute body-fixed accelerations for one instantaneous vessel state.
+
+        This method evaluates the ODE right-hand side only (no time integration).
 
         Args:
-            X (np.ndarray): Initial values: np.array([u,v,r])
-            delta (float): Rudder angle in [rad]
-            fl_psi (float): Attack angle of current relative to heading [rad]
-            fl_vel (Optional[float]): Fluid velocity (Current velocity)
-            w_vel (Optional[float]): Wind velocity
-            beta_w (Optional[float]): Wind attack angle
-            water_depth( Optional[float]): Water depth if vessel is simulated in shallow water
+            X (np.ndarray): Body-fixed state vector ``[u, v, r]``.
+            delta (float): Rudder angle in radians.
+            psi (float): Vessel heading in the earth-fixed frame, radians.
+            water_depth (float): Water depth in meters.
+            fl_psi (Optional[float]): Current direction in earth-fixed frame, radians.
+            fl_vel (Optional[float]): Current speed in m/s.
 
         Raises:
-            LogicError: - If the water depth is less than the
-                        ships draft. Ship would run aground. It is recommended
-                        to have at least (1.2*draft) meters of water under the vessel.
-                        - If a current velocity has been set but no
-                        attack angle for it.
+            cmn.LogicError:
+                If ``fl_vel`` is set but ``fl_psi`` is missing, or if
+                ``water_depth < vessel.T``.
 
         Returns:
-            Derivatives of u,v and r in the vessel fixed coordinate system
+            np.ndarray: ``[u_dot, v_dot, r_dot]`` in the body-fixed frame.
         """
 
         if fl_vel is not None and fl_psi is None:
@@ -268,8 +267,8 @@ class AbkowitzModel(cmn.Maneuvervable):
             fl_vel=fl_vel,
         )
 
-        # Just return the relevant derivatives
-        return uvr_dot * dT
+        # Return derivatives
+        return uvr_dot
 
     def pstep(
         self,
@@ -282,21 +281,82 @@ class AbkowitzModel(cmn.Maneuvervable):
         water_depth: float,
         fl_psi: Optional[float] = None,
         fl_vel: Optional[float] = None,
-    ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
-        """
-        Same as step but, the transformation of the velocities to the
-        earth fixed coordinate system is done here automatically.
+        mode = cmn.IntegrationMode.TRAPEZOIDAL
+    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
+        """Advance velocity and position by one time step.
+
+        Integrates body-fixed dynamics and updates earth-fixed pose.
+
+        Args:
+            X (np.ndarray): Body-fixed velocity state ``[u, v, r]``.
+            pos (cmn.EarthFixedPos): Current earth-fixed position ``[N, E]``.
+            dT (float): Time step in seconds.
+            delta (float): Rudder angle in radians.
+            psi (float): Heading angle in radians.
+            water_depth (float): Water depth in meters.
+            fl_psi (Optional[float]): Current direction in radians.
+            fl_vel (Optional[float]): Current speed in m/s.
+            mode (cmn.IntegrationMode): Integration method (TRAPEZOIDAL or RK4).
 
         Returns:
-            np.ndarray: New surge, sway and yaw rate of the vessel (Nu)
-            np.ndarray: New position and heading of the vessel (Eta)
+            tuple[NDArray[np.float32], NDArray[np.float32]]:
+                ``(new_uvr, new_eta)`` where ``new_uvr = [u, v, r]`` and
+                ``new_eta = [N, E, psi]``.
+        """
+        if mode is cmn.IntegrationMode.TRAPEZOIDAL:
+            return self._impl_pstep_trapezoidal(
+                X=X,
+                pos=pos,
+                dT=dT,
+                delta=delta,
+                psi=psi,
+                water_depth=water_depth,
+                fl_psi=fl_psi,
+                fl_vel=fl_vel
+            )
+        elif mode is cmn.IntegrationMode.RK4:
+            return self._impl_pstep_rk4(
+                X=X,
+                pos=pos,
+                dT=dT,
+                delta=delta,
+                psi=psi,
+                water_depth=water_depth,
+                fl_psi=fl_psi,
+                fl_vel=fl_vel
+            )
+        else:
+            raise ValueError(f"Unknown integration mode: {mode}")
+
+    def _impl_pstep_trapezoidal(
+        self,
+        *,
+        X: np.ndarray,
+        pos: cmn.EarthFixedPos,
+        dT: float,
+        delta: float,
+        psi: float,
+        water_depth: float,
+        fl_psi: Optional[float] = None,
+        fl_vel: Optional[float] = None,
+    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
+        """Trapezoidal position update with Euler velocity update.
+
+        Scheme:
+            1) Compute ``uvr_dot`` from the current state.
+            2) Update ``[u, v, r]`` with forward Euler.
+            3) Update heading and earth-fixed position with trapezoidal averaging.
+
+        Returns:
+            tuple[NDArray[np.float32], NDArray[np.float32]]:
+                Updated ``(new_uvr, new_eta)``, with ``new_eta = [N, E, psi]``.
         """
         old_uvr = X.copy()
-        old_eta_dot = np.dot(cmn.rotpsi(psi), old_uvr)
-
+        
+        # 1. Get body-fixed accelerations
+        # (Assuming self.step now correctly returns strictly uvr_dot)
         uvr_dot = self.step(
             X=X,
-            dT=dT,
             delta=delta,
             psi=psi,
             fl_psi=fl_psi,
@@ -304,18 +364,127 @@ class AbkowitzModel(cmn.Maneuvervable):
             water_depth=water_depth,
         )
 
-        # Get new velocities in the vessel fixed coordinate system
-        new_uvr = old_uvr + uvr_dot
+        # 2. Integrate body velocities (Forward Euler)
+        new_uvr = old_uvr + uvr_dot * dT
+        
+        # 3. Integrate heading (Trapezoidal)
+        r_old = old_uvr[2]
+        r_new = new_uvr[2]
+        new_psi = psi + 0.5 * (r_old + r_new) * dT
 
-        # Find new eta_dot via rotation
-        eta_dot_new = np.dot(cmn.rotpsi(psi), new_uvr)
+        # 4. Calculate Earth-fixed velocities
+        # Abkowitz rotpsi returns [d_xi (East), d_eta (North), d_psi]
+        old_earth_dot = np.dot(cmn.rotpsi(psi,np.pi/2), old_uvr)
+        new_earth_dot = np.dot(cmn.rotpsi(new_psi,np.pi/2), new_uvr)
 
-        # Update position in earth fixed coordinate system
-        eta = np.hstack((pos, psi))
-        new_eta = eta + 0.5 * (old_eta_dot + eta_dot_new) * dT
+        # Map Abkowitz outputs to North and East
+        # xi is horizontal (East), eta is vertical (North)
+        dot_E_old, dot_N_old = old_earth_dot[0], old_earth_dot[1]
+        dot_E_new, dot_N_new = new_earth_dot[0], new_earth_dot[1]
 
-        # Correct for overshooting heading angles
+        # 5. Integrate Earth-fixed position (Trapezoidal)
+        new_N = pos[0] + 0.5 * (dot_N_old + dot_N_new) * dT
+        new_E = pos[1] + 0.5 * (dot_E_old + dot_E_new) * dT
+        
+        # 6. Assemble state and normalize angle
+        new_eta = np.array([new_N, new_E, new_psi], dtype=np.float32)
         new_eta[2] = cmn.angle_to_two_pi(new_eta[2])
 
-        # (array[u,v,r], array[N,E,psi])
-        return new_uvr, new_eta
+        return new_uvr.astype(np.float32), new_eta
+    
+    def create_6dof_dynamic(
+        self, 
+        delta: float, 
+        fl_psi: float, 
+        fl_vel: float, 
+        water_depth: float
+    ) -> Callable[[NDArray[np.float32]], NDArray[np.float32]]:
+        """Create a closure for 6-state RK4 integration.
+
+        The generated function maps
+        ``state = [N, E, psi, u, v, r]`` to
+        ``state_dot = [N_dot, E_dot, psi_dot, u_dot, v_dot, r_dot]``
+        under fixed environmental/control inputs.
+        """
+        def frozen_dynamic(state: NDArray[np.float32]) -> NDArray[np.float32]:
+            # 1. Unpack the state
+            N, E, psi, u, v, r = state
+            uvr = np.array([u, v, r], dtype=np.float32)
+
+            # 2. Get Kinetics (Body-fixed accelerations: u_dot, v_dot, r_dot)
+            uvr_dot = self.dynamics(
+                X=uvr, 
+                delta=delta, 
+                h=water_depth, 
+                psi=psi, 
+                fl_psi=fl_psi, 
+                fl_vel=fl_vel
+            )
+
+            # 3. Get Kinematics (Earth-fixed velocities)
+            # Remember: Abkowitz rotpsi returns [d_East, d_North, d_psi]
+            earth_dot = np.dot(cmn.rotpsi(psi, np.pi/2), uvr)
+            
+            dot_E = earth_dot[0]
+            dot_N = earth_dot[1]
+            dot_psi = earth_dot[2]
+
+            # 4. Return the combined state derivative
+            # Must match the order of the input state: [N, E, psi, u, v, r]
+            return np.array([dot_N, dot_E, dot_psi, uvr_dot[0], uvr_dot[1], uvr_dot[2]], dtype=np.float32)
+
+        return frozen_dynamic
+
+    def _impl_pstep_rk4(
+        self,
+        *,
+        X: np.ndarray,
+        pos: cmn.EarthFixedPos,
+        dT: float,
+        delta: float,
+        psi: float,
+        water_depth: float,
+        fl_psi: Optional[float] = None,
+        fl_vel: Optional[float] = None,
+    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
+        """RK4 integration of combined pose and velocity state.
+
+        Builds a 6-state vector ``[N, E, psi, u, v, r]``, integrates one RK4
+        step, normalizes heading to ``[0, 2π)``, and splits back into
+        ``(new_uvr, new_eta)``.
+        """
+
+        # 0. Concatenate eta and nu
+        full_state = np.hstack([pos,psi,X])
+    
+        # 1. Generate the frozen function with current environmental params
+        ext_dyn = self.create_6dof_dynamic(delta, fl_psi, fl_vel, water_depth)
+        
+        # 2. Perform the RK4 integration on the entire 6-DOF state
+        new_state = self.rk4_step(ext_dynamic=ext_dyn, full_state=full_state, dT=dT)
+        
+        # 3. Normalize the heading angle (index 2 is psi)
+        new_state[2] = cmn.angle_to_two_pi(new_state[2])
+        
+        return new_state[3:], new_state[:3] # Returns the updated [N, E, psi, u, v, r]
+
+    def rk4_step(
+        self,*, 
+        ext_dynamic: Callable, 
+        full_state: NDArray[np.float32],
+        dT: float) -> tuple[NDArray[np.float32]]:
+        """Run one classical RK4 step for an arbitrary state vector.
+
+        Args:
+            ext_dynamic (Callable): Function ``f(x)`` returning ``dx/dt``.
+            full_state (NDArray[np.float32]): Current state vector.
+            dT (float): Time step in seconds.
+
+        Returns:
+            NDArray[np.float32]: State after one RK4 increment.
+        """
+        k1 = ext_dynamic(full_state)
+        k2 = ext_dynamic(full_state + 0.5 * dT * k1)
+        k3 = ext_dynamic(full_state + 0.5 * dT * k2)
+        k4 = ext_dynamic(full_state + dT * k3)
+        return full_state + (dT / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4) 

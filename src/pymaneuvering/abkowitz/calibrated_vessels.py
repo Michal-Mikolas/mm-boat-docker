@@ -4,7 +4,7 @@ gms_like_inland_barge = {
     # Reference parameter set for a GMS-like inland barge
     # for h/T = 8.00 (from Youjun Yang and Ould el Moctar (2024), Table 2)
 
-    # Refernce Speed
+    # Reference Speed
     "U_0": 2.777,
 
     # Properties

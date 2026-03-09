@@ -12,7 +12,7 @@ This package implementation provides standard models for ship maneuvering:
 Install the package via pip:
 
 ```bash
-pip install git+https://github.com/nikpau/mmgdynamics@dev
+pip install git+https://github.com/nikpau/pymaneuvering
 ```
 
 ## Quick Start

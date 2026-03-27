@@ -1,7 +1,6 @@
 // @ts-ignore
 import { Vessel } from './jsmaneuvering/src/vessel.js';
-// @ts-ignore
-import { VTYPE } from './jsmaneuvering/src/index.js';
+import { VesselProfile } from '../src/vessels/types.js';
 
 /**
  * Strongly-typed adapter class that acts as a bridge between the game's UI
@@ -22,14 +21,8 @@ export class BoatController {
   private throttle = 0;
   private steering = 0;
 
-  // Constants (Sailing Yacht Specs)
-  public readonly MAX_ENGINE_RPM = 3200;
-  public readonly REDUCTION_GEAR_RATIO = 2.5;
-  public readonly MAX_PROPELLER_NPS = (3200 / 2.5) / 60;
-  public readonly MAX_RUDDER_ANGLE = 35 * (Math.PI / 180);
-
-  constructor() {
-    this.vessel = new Vessel({ new_from: VTYPE.KVLCC2_L64 });
+  constructor(public readonly profile: VesselProfile) {
+    this.vessel = new Vessel({ new_from: profile.physicsModel });
     
     // Initialize starting state to something reasonable if needed, 
     // but default is 0 for everything as per requirements.
@@ -53,12 +46,13 @@ export class BoatController {
    * @param dt Time step in seconds.
    */
   public update(dt: number): void {
-    const nps = this.throttle * this.MAX_PROPELLER_NPS;
-    this.currentEngineRPM = this.throttle * this.MAX_ENGINE_RPM;
-    const delta = this.steering * this.MAX_RUDDER_ANGLE;
+    const maxPropellerNPS = (this.profile.engine.maxEngineRPM / this.profile.engine.reductionGearRatio) / 60.0;
+    const nps = this.throttle * maxPropellerNPS;
+    this.currentEngineRPM = this.throttle * this.profile.engine.maxEngineRPM;
+    const delta = this.steering * this.profile.steering.maxRudderAngleRads;
 
     // Call the physics engine's pstep() method
-    // We use a default water_depth of 100m for deep water if not specified
+    // We use a default water_depth of 15m (typical for tanker tests)
     const [new_uvr, new_eta] = this.vessel.pstep({
       X: this.uvr,
       pos: this.pos,

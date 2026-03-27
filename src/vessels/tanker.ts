@@ -18,6 +18,6 @@ export const tanker: VesselProfile = {
   },
   assets: {
     model3DPath: '/assets/vessels/tanker/model.glb',
-    sprite2DPath: '/assets/vessels/tanker/sprite.svg'
+    sprite2DPath: '/assets/vessels/tanker/sprite.png'
   }
 };

@@ -8,6 +8,7 @@ import { VesselProfile } from '../src/vessels/types.js';
  */
 export class BoatController {
   public position = { x: 0, y: 0, z: 0 };
+  public pivotPoint: { x: number, y: number, z: number } | null = null;
   public rotationY = 0;
   public currentEngineRPM = 0;
   public currentSpeed = 0; // Speed in m/s (surge)
@@ -80,5 +81,14 @@ export class BoatController {
     this.position.z = -this.pos[0];
     this.rotationY = -this.psi;
     this.currentSpeed = this.uvr[0];
+
+    const pivotPoint = this.vessel.getPivotPoint?.();
+    this.pivotPoint = pivotPoint
+      ? {
+          x: pivotPoint.world.east,
+          y: 0,
+          z: -pivotPoint.world.north,
+        }
+      : null;
   }
 }

@@ -72,7 +72,7 @@ function animate() {
   }
 
   // Update Visuals
-  engine.updateVesselTransform(boat.position, boat.rotationY);
+  engine.updateVesselTransform(boat.position, boat.rotationY, boat.pivotPoint);
   
   // Render
   engine.render();

@@ -8,6 +8,7 @@ export class RenderingEngine {
   private container: HTMLElement;
   private frustumSize: number = 150; // 150 meters across
   private vesselMesh: THREE.Mesh | null = null;
+  private pivotPointMesh: THREE.Mesh | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -69,6 +70,13 @@ export class RenderingEngine {
         this.scene.add(buoy);
       }
     }
+
+    const pivotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    this.pivotPointMesh = new THREE.Mesh(geometry, pivotMaterial);
+    this.pivotPointMesh.rotation.x = -Math.PI / 2;
+    this.pivotPointMesh.position.y = 0.2;
+    this.pivotPointMesh.visible = false;
+    this.scene.add(this.pivotPointMesh);
   }
 
   private onWindowResize() {
@@ -99,6 +107,7 @@ export class RenderingEngine {
       const material = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
+        opacity: 0.8,
       });
       const vessel = new THREE.Mesh(geometry, material);
       vessel.rotation.x = -Math.PI / 2;
@@ -108,7 +117,11 @@ export class RenderingEngine {
     } catch (error) {
       console.warn(`Failed to load sprite for ${profile.name}, using fallback:`, error);
       const geometry = new THREE.PlaneGeometry(profile.dimensions.beam, profile.dimensions.length);
-      const material = new THREE.MeshBasicMaterial({ color: 0x888888 });
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x888888,
+        transparent: true,
+        opacity: 0.8,
+      });
       const fallbackVessel = new THREE.Mesh(geometry, material);
       fallbackVessel.rotation.x = -Math.PI / 2;
       fallbackVessel.position.y = 0.1;
@@ -120,7 +133,11 @@ export class RenderingEngine {
   /**
    * Updates the vessel's transform and moves the camera to follow.
    */
-  public updateVesselTransform(position: { x: number, y: number, z: number }, rotationY: number) {
+  public updateVesselTransform(
+    position: { x: number, y: number, z: number },
+    rotationY: number,
+    pivotPoint: { x: number, y: number, z: number } | null
+  ) {
     if (!this.vesselMesh) return;
 
     // Apply Position
@@ -134,6 +151,13 @@ export class RenderingEngine {
     // Camera Tracking
     this.camera.position.x = position.x;
     this.camera.position.z = position.z;
+
+    if (this.pivotPointMesh) {
+      this.pivotPointMesh.visible = pivotPoint !== null;
+      if (pivotPoint) {
+        this.pivotPointMesh.position.set(pivotPoint.x, 0.2, pivotPoint.z);
+      }
+    }
   }
 
   public render() {

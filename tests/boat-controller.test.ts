@@ -58,4 +58,41 @@ describe('BoatController', () => {
     expect(controller.rotationY).not.toBeCloseTo(0, 5);
     expect(controller.position.x).not.toBeCloseTo(0, 5);
   });
+
+  it('maps the physics engine pivot point into render coordinates', () => {
+    const controller = new BoatController(tanker);
+
+    (controller as any).uvr = [2.0, 0.1, 0.05];
+    (controller as any).pos = [0.0, 0.0];
+    (controller as any).psi = 0.0;
+
+    controller.setControls(1.0, 10 / 35);
+    controller.update(1.0);
+
+    const [u, v, r] = (controller as any).uvr;
+    const [north, east] = (controller as any).pos;
+    const psi = (controller as any).psi;
+    const longitudinalOffset = -v / r;
+    const expectedNorth = north + Math.cos(psi) * longitudinalOffset;
+    const expectedEast = east + Math.sin(psi) * longitudinalOffset;
+
+    expect(u).toBeGreaterThan(0);
+    expect(controller.pivotPoint).not.toBeNull();
+    expect(controller.pivotPoint?.x).toBeCloseTo(expectedEast, 5);
+    expect(controller.pivotPoint?.z).toBeCloseTo(-expectedNorth, 5);
+    expect(controller.pivotPoint?.y).toBe(0);
+  });
+
+  it('hides the pivot point when the yaw rate is effectively zero', () => {
+    const controller = new BoatController(tanker);
+
+    (controller as any).uvr = [2.0, 0.0, 0.0];
+    (controller as any).pos = [0.0, 0.0];
+    (controller as any).psi = 0.0;
+
+    controller.setControls(1.0, 0.0);
+    controller.update(1.0);
+
+    expect(controller.pivotPoint).toBeNull();
+  });
 });

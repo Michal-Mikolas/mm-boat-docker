@@ -12,10 +12,8 @@ body, html {
   height: 100vh;
 }
 
-#hud {
+.hud-panel {
   position: absolute;
-  bottom: 40px;
-  right: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -30,6 +28,16 @@ body, html {
   pointer-events: auto;
   min-width: 140px;
   opacity: 0.8;
+}
+
+#hud {
+  bottom: 40px;
+  right: 40px;
+}
+
+#steering-hud {
+  bottom: 40px;
+  left: 40px;
 }
 
 #stats {
@@ -71,7 +79,7 @@ body, html {
   overflow: hidden;
 }
 
-#hud label {
+.hud-panel label {
   color: #fff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
@@ -81,28 +89,53 @@ body, html {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-#throttle {
+.steering-group {
+  width: 220px;
+}
+
+#steering-hud .steering-group {
+  padding-bottom: 20px;
+}
+
+.helm-slider {
   appearance: none;
-  width: 200px;
   height: 6px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   outline: none;
   cursor: pointer;
-  /* Rotate horizontal slider to vertical */
+}
+
+.helm-slider-vertical {
+  width: 200px;
   transform: rotate(-90deg);
-  margin: 100px 0; /* Add margin to account for rotation footprint */
+  margin: 100px 0;
+}
+
+.helm-slider-horizontal {
+  width: 220px;
+  margin: 8px 0 0;
+  background:
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0.2) calc(50% - 1px),
+      rgba(255, 255, 255, 0.65) calc(50% - 1px),
+      rgba(255, 255, 255, 0.65) calc(50% + 1px),
+      rgba(255, 255, 255, 0.2) calc(50% + 1px),
+      rgba(255, 255, 255, 0.2) 100%
+    );
 }
 
 /* Chrome, Safari, Edge, Opera */
-#throttle::-webkit-slider-runnable-track {
+.helm-slider::-webkit-slider-runnable-track {
   width: 100%;
   height: 6px;
   cursor: pointer;
   background: transparent;
 }
 
-#throttle::-webkit-slider-thumb {
+.helm-slider::-webkit-slider-thumb {
   appearance: none;
   height: 24px;
   width: 24px;
@@ -117,14 +150,14 @@ body, html {
 }
 
 /* Firefox */
-#throttle::-moz-range-track {
+.helm-slider::-moz-range-track {
   width: 100%;
   height: 6px;
   cursor: pointer;
   background: transparent;
 }
 
-#throttle::-moz-range-thumb {
+.helm-slider::-moz-range-thumb {
   height: 24px;
   width: 24px;
   border-radius: 50%;
@@ -133,4 +166,3 @@ body, html {
   border: 3px solid #fff;
   box-shadow: 0 0 15px rgba(30, 136, 229, 0.6);
 }
-

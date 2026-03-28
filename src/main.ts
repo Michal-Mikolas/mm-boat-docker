@@ -5,6 +5,7 @@ import { BoatController } from '../lib/boat-controller';
 
 const container = document.getElementById('app');
 const throttleInput = document.getElementById('throttle') as HTMLInputElement;
+const steeringInput = document.getElementById('steering') as HTMLInputElement;
 const speedVal = document.getElementById('speed-val');
 const rpmVal = document.getElementById('rpm-val');
 
@@ -20,13 +21,27 @@ if (throttleInput) {
   throttleInput.value = "0";
 }
 
+if (steeringInput) {
+  steeringInput.value = "0";
+}
+
+function applyControls(): void {
+  const throttle = throttleInput ? parseFloat(throttleInput.value) : 0;
+  const steering = steeringInput ? parseFloat(steeringInput.value) : 0;
+
+  boat.setControls(throttle, steering);
+}
+
 // UI Listeners
 if (throttleInput) {
-  throttleInput.addEventListener('input', () => {
-    const val = parseFloat(throttleInput.value);
-    boat.setControls(val, 0); // Steering 0 for now
-  });
+  throttleInput.addEventListener('input', applyControls);
 }
+
+if (steeringInput) {
+  steeringInput.addEventListener('input', applyControls);
+}
+
+applyControls();
 
 // Initialize vessel
 engine.loadVessel(tanker).then(() => {

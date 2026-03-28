@@ -17,7 +17,7 @@ export const tanker: VesselProfile = {
     maxRudderAngleRads: 35 * (Math.PI / 180)
   },
   assets: {
-    model3DPath: '/assets/vessels/tanker/model.glb',  // "assets" folder lives inside "/public" folder
-    sprite2DPath: '/assets/vessels/tanker/sprite.png'   // "assets" folder lives inside "/public" folder
+    model3DPath: './assets/vessels/tanker/model.glb',  // "assets" folder lives inside "/public" folder
+    sprite2DPath: './assets/vessels/tanker/sprite.png'   // "assets" folder lives inside "/public" folder
   }
 };

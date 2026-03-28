@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marine Simulator - Pymaneuvering</title>
+    <script type="module" crossorigin src="./assets/index-jzc-gs8f.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CYE-yxfV.css">
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud" class="hud-panel">
+      <div id="stats">
+        <div class="stat"><span class="label">Speed:</span> <span id="speed-val">0.00</span> kn</div>
+        <div class="stat"><span class="label">RPM:</span> <span id="rpm-val">0</span></div>
+      </div>
+      <div class="control-group">
+        <label for="throttle">Throttle</label>
+        <input type="range" id="throttle" class="helm-slider helm-slider-vertical" min="-1" max="1" step="0.01" value="0">
+      </div>
+    </div>
+    <div id="steering-hud" class="hud-panel">
+      <div class="control-group steering-group">
+        <label for="steering">Steering</label>
+        <input type="range" id="steering" class="helm-slider helm-slider-horizontal" min="-1" max="1" step="0.01" value="0">
+      </div>
+    </div>
+    <div id="settings-hud" class="hud-panel collapsible-panel">
+      <button type="button" class="panel-toggle" aria-expanded="false" aria-controls="settings-panel-content">
+        <span>Settings</span>
+        <span class="panel-toggle-icon" aria-hidden="true">+</span>
+      </button>
+      <div id="settings-panel-content" class="panel-content">
+        <section class="settings-section collapsible-section">
+          <button type="button" class="section-toggle" aria-expanded="false" aria-controls="view-settings-section">
+            <span>2D &amp; 3D view</span>
+            <span class="section-toggle-icon" aria-hidden="true">+</span>
+          </button>
+          <div id="view-settings-section" class="section-content">
+            <label class="checkbox-row" for="follow-ship">
+              <input type="checkbox" id="follow-ship" checked>
+              <span>Follow the ship</span>
+            </label>
+            <label class="checkbox-row" for="show-pivot-point">
+              <input type="checkbox" id="show-pivot-point" checked>
+              <span>Show vessel's pivot point</span>
+            </label>
+            <label class="settings-field" for="vessel-opacity">
+              <span>Vessel's opacity</span>
+              <input type="number" id="vessel-opacity" min="0" max="1" step="0.1" value="0.8" inputmode="decimal">
+            </label>
+          </div>
+        </section>
+        <section class="settings-section collapsible-section">
+          <button type="button" class="section-toggle" aria-expanded="false" aria-controls="environment-settings-section">
+            <span>Wind &amp; Current</span>
+            <span class="section-toggle-icon" aria-hidden="true">+</span>
+          </button>
+          <div id="environment-settings-section" class="section-content">
+            <p class="settings-placeholder">(under construction)</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

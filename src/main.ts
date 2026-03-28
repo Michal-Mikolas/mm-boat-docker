@@ -2,6 +2,7 @@ import './style.css';
 import { tanker } from './vessels/tanker';
 import { RenderingEngine } from './rendering-engine';
 import { BoatController } from '../lib/boat-controller';
+import { KeyboardAxisController } from './keyboard-axis-controller';
 
 const container = document.getElementById('app');
 const throttleInput = document.getElementById('throttle') as HTMLInputElement;
@@ -40,11 +41,75 @@ if (vesselOpacityInput) {
   vesselOpacityInput.value = "0.8";
 }
 
+const steeringKeyboard = new KeyboardAxisController({
+  holdBindings: {
+    KeyA: -1,
+    KeyD: 1,
+  },
+  centerBindings: ['KeyW', 'KeyS'],
+  holdUnitsPerSecond: 1,
+  snapUnitsPerSecond: 2,
+  centerUnitsPerSecond: 2,
+});
+
+const throttleKeyboard = new KeyboardAxisController({
+  holdBindings: {
+    Numpad2: -1,
+    Numpad8: 1,
+  },
+  doubleTapBindings: {
+    Numpad2: -1,
+    Numpad8: 1,
+  },
+  centerBindings: ['Numpad5'],
+  holdUnitsPerSecond: 1,
+  snapUnitsPerSecond: 2,
+  centerUnitsPerSecond: 2,
+});
+
+function syncKeyboardStateFromInputs(): void {
+  if (throttleInput) {
+    throttleKeyboard.setValue(parseFloat(throttleInput.value));
+  }
+
+  if (steeringInput) {
+    steeringKeyboard.setValue(parseFloat(steeringInput.value));
+  }
+}
+
 function applyControls(): void {
   const throttle = throttleInput ? parseFloat(throttleInput.value) : 0;
   const steering = steeringInput ? parseFloat(steeringInput.value) : 0;
 
   boat.setControls(throttle, steering);
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+    return true;
+  }
+
+  if (target instanceof HTMLInputElement) {
+    return !['range', 'checkbox', 'radio', 'button'].includes(target.type);
+  }
+
+  return false;
+}
+
+function handleKeyboardControlChange(changed: boolean, input: HTMLInputElement | null, controller: KeyboardAxisController): void {
+  if (!changed || !input) {
+    return;
+  }
+
+  input.value = controller.getValue().toFixed(2);
 }
 
 function toggleCollapsibleState(containerEl: HTMLElement, isOpen: boolean, trigger: HTMLButtonElement): void {
@@ -81,11 +146,17 @@ function applySimulationSettings(): void {
 
 // UI Listeners
 if (throttleInput) {
-  throttleInput.addEventListener('input', applyControls);
+  throttleInput.addEventListener('input', () => {
+    syncKeyboardStateFromInputs();
+    applyControls();
+  });
 }
 
 if (steeringInput) {
-  steeringInput.addEventListener('input', applyControls);
+  steeringInput.addEventListener('input', () => {
+    syncKeyboardStateFromInputs();
+    applyControls();
+  });
 }
 
 if (followShipInput) {
@@ -101,7 +172,39 @@ if (vesselOpacityInput) {
   vesselOpacityInput.addEventListener('change', applySimulationSettings);
 }
 
+document.addEventListener('keydown', (event) => {
+  if (isTypingTarget(event.target)) {
+    return;
+  }
+
+  const steeringHandled = steeringKeyboard.handleKeyDown(event.code, event.timeStamp, event.repeat);
+  const throttleHandled = throttleKeyboard.handleKeyDown(event.code, event.timeStamp, event.repeat);
+
+  handleKeyboardControlChange(steeringHandled, steeringInput, steeringKeyboard);
+  handleKeyboardControlChange(throttleHandled, throttleInput, throttleKeyboard);
+
+  if (steeringHandled || throttleHandled) {
+    applyControls();
+    event.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', (event) => {
+  const steeringHandled = steeringKeyboard.handleKeyUp(event.code);
+  const throttleHandled = throttleKeyboard.handleKeyUp(event.code);
+
+  if (steeringHandled || throttleHandled) {
+    event.preventDefault();
+  }
+});
+
+window.addEventListener('blur', () => {
+  steeringKeyboard.clearHeldKeys();
+  throttleKeyboard.clearHeldKeys();
+});
+
 setupCollapsibles();
+syncKeyboardStateFromInputs();
 applyControls();
 applySimulationSettings();
 
@@ -123,6 +226,16 @@ function animate() {
 
   // Cap delta time to prevent physics explosion (e.g., when switching tabs)
   dt = Math.min(dt, 0.1);
+
+  const steeringChanged = steeringKeyboard.update(dt);
+  const throttleChanged = throttleKeyboard.update(dt);
+
+  handleKeyboardControlChange(steeringChanged, steeringInput, steeringKeyboard);
+  handleKeyboardControlChange(throttleChanged, throttleInput, throttleKeyboard);
+
+  if (steeringChanged || throttleChanged) {
+    applyControls();
+  }
 
   // Update Physics
   boat.update(dt);

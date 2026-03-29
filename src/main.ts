@@ -9,9 +9,11 @@ const throttleInput = document.getElementById('throttle') as HTMLInputElement;
 const steeringInput = document.getElementById('steering') as HTMLInputElement;
 const speedVal = document.getElementById('speed-val');
 const rpmVal = document.getElementById('rpm-val');
+const hudPanels = document.querySelectorAll<HTMLElement>('.hud-panel');
 const followShipInput = document.getElementById('follow-ship') as HTMLInputElement;
 const showPivotPointInput = document.getElementById('show-pivot-point') as HTMLInputElement;
 const vesselOpacityInput = document.getElementById('vessel-opacity') as HTMLInputElement;
+const uiOpacityInput = document.getElementById('ui-opacity') as HTMLInputElement;
 
 if (!container) {
   throw new Error("Could not find '#app' container in DOM.");
@@ -39,6 +41,10 @@ if (showPivotPointInput) {
 
 if (vesselOpacityInput) {
   vesselOpacityInput.value = "0.8";
+}
+
+if (uiOpacityInput) {
+  uiOpacityInput.value = "0.8";
 }
 
 const steeringKeyboard = new KeyboardAxisController({
@@ -136,12 +142,18 @@ function setupCollapsibles(): void {
 function applySimulationSettings(): void {
   const followShip = followShipInput ? followShipInput.checked : false;
   const showPivotPoint = showPivotPointInput ? showPivotPointInput.checked : false;
-  const rawOpacity = vesselOpacityInput ? parseFloat(vesselOpacityInput.value) : 0.8;
-  const vesselOpacity = Number.isFinite(rawOpacity) ? Math.min(1, Math.max(0, rawOpacity)) : 0.8;
+  const rawVesselOpacity = vesselOpacityInput ? parseFloat(vesselOpacityInput.value) : 0.8;
+  const rawUiOpacity = uiOpacityInput ? parseFloat(uiOpacityInput.value) : 0.8;
+  const vesselOpacity = Number.isFinite(rawVesselOpacity) ? Math.min(1, Math.max(0, rawVesselOpacity)) : 0.8;
+  const uiOpacity = Number.isFinite(rawUiOpacity) ? Math.min(1, Math.max(0, rawUiOpacity)) : 0.8;
 
   engine.setFollowShip(followShip);
   engine.setShowPivotPoint(showPivotPoint);
   engine.setVesselOpacity(vesselOpacity);
+
+  hudPanels.forEach((panel) => {
+    panel.style.opacity = String(uiOpacity);
+  });
 }
 
 // UI Listeners
@@ -170,6 +182,11 @@ if (showPivotPointInput) {
 if (vesselOpacityInput) {
   vesselOpacityInput.addEventListener('input', applySimulationSettings);
   vesselOpacityInput.addEventListener('change', applySimulationSettings);
+}
+
+if (uiOpacityInput) {
+  uiOpacityInput.addEventListener('input', applySimulationSettings);
+  uiOpacityInput.addEventListener('change', applySimulationSettings);
 }
 
 document.addEventListener('keydown', (event) => {

@@ -95,4 +95,14 @@ describe('BoatController', () => {
 
     expect(controller.pivotPoint).toBeNull();
   });
+
+  it('applies tanker prop-walk overrides during astern motion', () => {
+    const controller = new BoatController(tanker);
+
+    controller.setControls(-1.0, 0.0);
+    controller.update(1.0);
+
+    expect(controller.position.x).toBeLessThan(0);
+    expect(controller.rotationY).toBeLessThan(0);
+  });
 });

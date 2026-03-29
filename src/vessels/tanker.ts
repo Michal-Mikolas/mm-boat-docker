@@ -5,6 +5,16 @@ export const tanker: VesselProfile = {
   id: 'kvlcc2_tanker',
   name: 'KVLCC2 Tanker',
   physicsModel: VTYPE.KVLCC2_L64,
+  physicsOverrides: {
+    // Research supports RH handedness directly; the remaining values are a
+    // conservative KVLCC2-specific initial calibration, not a benchmark truth.
+    prop_walk_handedness: 'RH',
+    prop_walk_ahead_coeff: 0.0,
+    prop_walk_astern_coeff: 0.10,
+    prop_walk_decay_j0: 0.30,
+    prop_walk_decay_power: 2.0,
+    prop_walk_yaw_arm: 0.0,
+  },
   dimensions: {
     length: 64.0,
     beam: 11.6

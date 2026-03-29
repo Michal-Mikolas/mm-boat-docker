@@ -24,7 +24,15 @@ export class BoatController {
   private steering = 0;
 
   constructor(public readonly profile: VesselProfile) {
-    this.vessel = new Vessel({ new_from: profile.physicsModel });
+    const baseVessel = new Vessel({ new_from: profile.physicsModel });
+    this.vessel = profile.physicsOverrides
+      ? new Vessel({
+          vessel_data: {
+            ...baseVessel.vessel,
+            ...profile.physicsOverrides,
+          },
+        })
+      : baseVessel;
     
     // Initialize starting state to something reasonable if needed, 
     // but default is 0 for everything as per requirements.

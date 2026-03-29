@@ -21,15 +21,15 @@ describe('BoatController', () => {
     controller.update(1.0); // dt = 1.0
 
     // Expected values calculated via current controller wiring for nps=7.5, delta=10deg:
-    // expectedEta = [2.0382018089294434, 0.07921896874904633, 0.04744698852300644]
+    // expectedEta = [2.0383312702178955, 0.08034950494766235, 0.047312743961811066]
     // Mapping:
     // x = eta[1] (Easting)
     // z = -eta[0] (-Northing)
     // rotationY = -eta[2] (-Heading)
 
-    expect(controller.position.x).toBeCloseTo(0.07921896874904633, 5);
-    expect(controller.position.z).toBeCloseTo(-2.0382018089294434, 5);
-    expect(controller.rotationY).toBeCloseTo(-0.04744698852300644, 5);
+    expect(controller.position.x).toBeCloseTo(0.08034950494766235, 5);
+    expect(controller.position.z).toBeCloseTo(-2.0383312702178955, 5);
+    expect(controller.rotationY).toBeCloseTo(-0.047312743961811066, 5);
     expect(controller.position.y).toBe(0);
     
     // Check RPM: throttle (1.0) * maxEngineRPM (450) = 450

@@ -19,6 +19,7 @@ export class RenderingEngine {
   private pivotPointMesh: THREE.Mesh | null = null;
   private followShip = false;
   private showPivotPoint = false;
+  private pivotPointOpacity = 0.2;
   private loadRequestId = 0;
   private currentVesselLength = 64;
   private pinchStartDistance: number | null = null;
@@ -95,7 +96,11 @@ export class RenderingEngine {
       }
     }
 
-    const pivotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const pivotMaterial = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: this.pivotPointOpacity,
+    });
     this.pivotPointMesh = new THREE.Mesh(geometry, pivotMaterial);
     this.pivotPointMesh.rotation.x = -Math.PI / 2;
     this.pivotPointMesh.position.y = 0.2;
@@ -290,6 +295,18 @@ export class RenderingEngine {
 
   public setFollowShip(follow: boolean) {
     this.followShip = follow;
+  }
+
+  public setPivotPointOpacity(opacity: number) {
+    this.pivotPointOpacity = THREE.MathUtils.clamp(opacity, 0, 1);
+
+    if (!this.pivotPointMesh) {
+      return;
+    }
+
+    const material = this.pivotPointMesh.material;
+    material.transparent = this.pivotPointOpacity < 1;
+    material.opacity = this.pivotPointOpacity;
   }
 
   public setVesselOpacity(opacity: number) {

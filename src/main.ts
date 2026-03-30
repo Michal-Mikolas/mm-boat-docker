@@ -13,6 +13,7 @@ const rpmVal = document.getElementById('rpm-val');
 const hudPanels = document.querySelectorAll<HTMLElement>('.hud-panel');
 const followShipInput = document.getElementById('follow-ship') as HTMLInputElement;
 const showPivotPointInput = document.getElementById('show-pivot-point') as HTMLInputElement;
+const pivotPointOpacityInput = document.getElementById('pivot-point-opacity') as HTMLInputElement;
 const vesselOpacityInput = document.getElementById('vessel-opacity') as HTMLInputElement;
 const uiOpacityInput = document.getElementById('ui-opacity') as HTMLInputElement;
 const vesselSelect = document.getElementById('vessel-select') as HTMLSelectElement;
@@ -57,6 +58,10 @@ if (followShipInput) {
 
 if (showPivotPointInput) {
   showPivotPointInput.checked = true;
+}
+
+if (pivotPointOpacityInput) {
+  pivotPointOpacityInput.value = "0.2";
 }
 
 if (vesselOpacityInput) {
@@ -170,13 +175,16 @@ function setupCollapsibles(): void {
 function applySimulationSettings(): void {
   const followShip = followShipInput ? followShipInput.checked : false;
   const showPivotPoint = showPivotPointInput ? showPivotPointInput.checked : false;
+  const rawPivotPointOpacity = pivotPointOpacityInput ? parseFloat(pivotPointOpacityInput.value) : 0.2;
   const rawVesselOpacity = vesselOpacityInput ? parseFloat(vesselOpacityInput.value) : 0.8;
   const rawUiOpacity = uiOpacityInput ? parseFloat(uiOpacityInput.value) : 0.8;
+  const pivotPointOpacity = Number.isFinite(rawPivotPointOpacity) ? Math.min(1, Math.max(0, rawPivotPointOpacity)) : 0.2;
   const vesselOpacity = Number.isFinite(rawVesselOpacity) ? Math.min(1, Math.max(0, rawVesselOpacity)) : 0.8;
   const uiOpacity = Number.isFinite(rawUiOpacity) ? Math.min(1, Math.max(0, rawUiOpacity)) : 0.8;
 
   engine.setFollowShip(followShip);
   engine.setShowPivotPoint(showPivotPoint);
+  engine.setPivotPointOpacity(pivotPointOpacity);
   engine.setVesselOpacity(vesselOpacity);
 
   hudPanels.forEach((panel) => {
@@ -205,6 +213,11 @@ if (followShipInput) {
 
 if (showPivotPointInput) {
   showPivotPointInput.addEventListener('change', applySimulationSettings);
+}
+
+if (pivotPointOpacityInput) {
+  pivotPointOpacityInput.addEventListener('input', applySimulationSettings);
+  pivotPointOpacityInput.addEventListener('change', applySimulationSettings);
 }
 
 if (vesselOpacityInput) {

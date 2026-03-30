@@ -1,5 +1,5 @@
 import './style.css';
-import { tanker } from './vessels/tanker';
+import { j105 } from './vessels/j105';
 import { RenderingEngine } from './rendering-engine';
 import { BoatController } from '../lib/boat-controller';
 import { KeyboardAxisController } from './keyboard-axis-controller';
@@ -20,7 +20,8 @@ if (!container) {
 }
 
 const engine = new RenderingEngine(container);
-const boat = new BoatController(tanker);
+const activeVessel = j105;
+const boat = new BoatController(activeVessel);
 
 // Ensure throttle starts at 0
 if (throttleInput) {
@@ -226,8 +227,8 @@ applyControls();
 applySimulationSettings();
 
 // Initialize vessel
-engine.loadVessel(tanker).then(() => {
-  console.log('Tanker loaded successfully (or via fallback).');
+engine.loadVessel(activeVessel).then(() => {
+  console.log(`${activeVessel.name} loaded successfully (or via fallback).`);
   applySimulationSettings();
 });
 

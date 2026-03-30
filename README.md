@@ -48,6 +48,15 @@ The intended direction is a realistic docking simulator, so future work will lik
 - Testing: Jest + `ts-jest` for TS/JS tests
 - Math dependency used by the physics port: `gl-matrix` (Strictly enforced)
 
+## Physics Models
+
+`lib/jsmaneuvering` supports two maneuvering-model families:
+
+- MMG
+- Abkowitz
+
+For the simulator app in this repository, only the MMG model is currently used. When working on `src/`, `lib/boat-controller.ts`, runtime behavior, or simulator-facing tests, assume the active physics path is MMG unless the user explicitly asks to expand simulator support.
+
 ## Repository Map
 
 - `src/main.ts`
@@ -115,7 +124,7 @@ Key exports:
     - `pstep(args)`
     - `nps_from_u(u)`
 
-The simulator currently uses the MMG path with `KVLCC2_L64`.
+The simulator currently uses the MMG path only, with `KVLCC2_L64`. Even though `jsmaneuvering` also supports Abkowitz vessels, that model is not wired into the simulator runtime today.
 
 ### `pstep(...)` contract
 
@@ -234,8 +243,7 @@ The code already includes a `model3DPath`, but `RenderingEngine` currently loads
   - Checks current, wind, shallow-water, and zero-velocity scenarios
   - Includes reverse-motion safeguards
 - `lib/jsmaneuvering/tests/abkowitz.test.js`
-  - Checks Abkowitz `dynamics` and `pstep`
-  - Verifies integration modes and some error paths
+  - Covers the library's Abkowitz support
 - `lib/jsmaneuvering/tests/calibration.test.js`
   - Checks MMG calibration from a minimal vessel description
 
@@ -386,4 +394,4 @@ Think of this repository as three layers:
 2. `lib/jsmaneuvering`: the browser-usable JS port that should stay aligned with the reference, especially in forward motion
 3. `src/` + `lib/boat-controller.ts`: the actual simulator app layer where most ongoing product work should happen
 
-If you are unsure where to make a change, prefer the app layer first and treat forward-motion physics as protected.
+The library layer supports both MMG and Abkowitz, but the simulator app currently exercises MMG only. If you are unsure where to make a change, prefer the app layer first and treat forward-motion physics as protected.

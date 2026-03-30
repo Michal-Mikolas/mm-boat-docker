@@ -1,4 +1,5 @@
 import { BoatController } from '../lib/boat-controller.js';
+import { j105 } from '../src/vessels/j105.js';
 import { tanker } from '../src/vessels/tanker.js';
 
 describe('BoatController', () => {
@@ -104,5 +105,18 @@ describe('BoatController', () => {
 
     expect(controller.position.x).toBeLessThan(0);
     expect(controller.rotationY).toBeLessThan(0);
+  });
+
+  it('supports fully custom MMG vessel data for the J/105 profile', () => {
+    const controller = new BoatController(j105);
+
+    controller.setControls(0.8, 0.35);
+    controller.update(0.5);
+
+    expect(Number.isFinite(controller.position.x)).toBe(true);
+    expect(Number.isFinite(controller.position.z)).toBe(true);
+    expect(Number.isFinite(controller.rotationY)).toBe(true);
+    expect(Number.isFinite(controller.currentSpeed)).toBe(true);
+    expect(controller.currentEngineRPM).toBeCloseTo(2880, 5);
   });
 });

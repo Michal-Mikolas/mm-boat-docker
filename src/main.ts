@@ -12,6 +12,8 @@ const speedVal = document.getElementById('speed-val');
 const rpmVal = document.getElementById('rpm-val');
 const hudPanels = document.querySelectorAll<HTMLElement>('.hud-panel');
 const followShipInput = document.getElementById('follow-ship') as HTMLInputElement;
+const lookAheadInput = document.getElementById('look-ahead') as HTMLInputElement;
+const lookAheadMultiplierInput = document.getElementById('look-ahead-multiplier') as HTMLInputElement;
 const showPivotPointInput = document.getElementById('show-pivot-point') as HTMLInputElement;
 const pivotPointOpacityInput = document.getElementById('pivot-point-opacity') as HTMLInputElement;
 const vesselOpacityInput = document.getElementById('vessel-opacity') as HTMLInputElement;
@@ -54,6 +56,14 @@ if (steeringInput) {
 
 if (followShipInput) {
   followShipInput.checked = false;
+}
+
+if (lookAheadInput) {
+  lookAheadInput.checked = true;
+}
+
+if (lookAheadMultiplierInput) {
+  lookAheadMultiplierInput.value = "0.2";
 }
 
 if (showPivotPointInput) {
@@ -185,15 +195,24 @@ function setupCollapsibles(): void {
 
 function applySimulationSettings(): void {
   const followShip = followShipInput ? followShipInput.checked : false;
+  const lookAheadEnabled = lookAheadInput ? lookAheadInput.checked : true;
+  const rawLookAheadMultiplier = lookAheadMultiplierInput
+    ? parseFloat(lookAheadMultiplierInput.value)
+    : 0.2;
   const showPivotPoint = showPivotPointInput ? showPivotPointInput.checked : false;
   const rawPivotPointOpacity = pivotPointOpacityInput ? parseFloat(pivotPointOpacityInput.value) : 0.2;
   const rawVesselOpacity = vesselOpacityInput ? parseFloat(vesselOpacityInput.value) : 0.8;
   const rawUiOpacity = uiOpacityInput ? parseFloat(uiOpacityInput.value) : 0.8;
+  const lookAheadMultiplier = Number.isFinite(rawLookAheadMultiplier)
+    ? Math.max(0, rawLookAheadMultiplier)
+    : 0.2;
   const pivotPointOpacity = Number.isFinite(rawPivotPointOpacity) ? Math.min(1, Math.max(0, rawPivotPointOpacity)) : 0.2;
   const vesselOpacity = Number.isFinite(rawVesselOpacity) ? Math.min(1, Math.max(0, rawVesselOpacity)) : 0.8;
   const uiOpacity = Number.isFinite(rawUiOpacity) ? Math.min(1, Math.max(0, rawUiOpacity)) : 0.8;
 
   engine.setFollowShip(followShip);
+  engine.setLookAheadEnabled(lookAheadEnabled);
+  engine.setLookAheadMultiplier(lookAheadMultiplier);
   engine.setShowPivotPoint(showPivotPoint);
   engine.setPivotPointOpacity(pivotPointOpacity);
   engine.setVesselOpacity(vesselOpacity);
@@ -228,6 +247,15 @@ if (steeringInput) {
 
 if (followShipInput) {
   followShipInput.addEventListener('change', applySimulationSettings);
+}
+
+if (lookAheadInput) {
+  lookAheadInput.addEventListener('change', applySimulationSettings);
+}
+
+if (lookAheadMultiplierInput) {
+  lookAheadMultiplierInput.addEventListener('input', applySimulationSettings);
+  lookAheadMultiplierInput.addEventListener('change', applySimulationSettings);
 }
 
 if (showPivotPointInput) {
@@ -336,7 +364,7 @@ function animate() {
   }
 
   // Update Visuals
-  engine.updateVesselTransform(boat.position, boat.rotationY, boat.pivotPoint);
+  engine.updateVesselTransform(boat.position, boat.rotationY, boat.pivotPoint, boat.currentSpeed, dt);
   
   // Render
   engine.render();

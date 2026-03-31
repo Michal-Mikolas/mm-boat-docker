@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { VesselProfile } from './vessels/types';
 import {
+  createInitialCameraLookAheadState,
+  updateCameraLookAheadState,
+} from './camera-look-ahead.js';
+import {
   getDefaultFrustumSizeForVesselLength,
   getDefaultZoomMultiplierForViewport,
 } from './zoom.js';
@@ -32,6 +36,9 @@ export class RenderingEngine {
     | null = null;
   private pinchStartDistance: number | null = null;
   private pinchStartZoomScale = 1;
+  private lookAheadEnabled = true;
+  private lookAheadMultiplier = 0.2;
+  private lookAheadState = createInitialCameraLookAheadState();
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -300,6 +307,7 @@ export class RenderingEngine {
     const requestId = ++this.loadRequestId;
     this.removeCurrentVessel();
     this.setAdaptiveZoom(profile);
+    this.resetCameraLookAhead();
 
     const loader = new THREE.TextureLoader();
 
@@ -360,7 +368,19 @@ export class RenderingEngine {
   }
 
   public setFollowShip(follow: boolean) {
+    if (this.followShip !== follow) {
+      this.resetCameraLookAhead();
+    }
+
     this.followShip = follow;
+  }
+
+  public setLookAheadEnabled(enabled: boolean) {
+    this.lookAheadEnabled = enabled;
+  }
+
+  public setLookAheadMultiplier(multiplier: number) {
+    this.lookAheadMultiplier = Number.isFinite(multiplier) ? Math.max(0, multiplier) : 0;
   }
 
   public setPivotPointOpacity(opacity: number) {
@@ -402,17 +422,34 @@ export class RenderingEngine {
   public updateVesselTransform(
     position: { x: number, y: number, z: number },
     rotationY: number,
-    pivotPoint: { x: number, y: number, z: number } | null
+    pivotPoint: { x: number, y: number, z: number } | null,
+    speedMps: number,
+    dtSeconds: number
   ) {
     if (!this.vesselMesh) return;
 
+    this.lookAheadState = updateCameraLookAheadState(this.lookAheadState, {
+      dtSeconds,
+      enabled: this.lookAheadEnabled,
+      frustumSize: this.frustumSize,
+      mode: this.followShip ? 'follow-rotation' : 'world-motion',
+      multiplier: this.lookAheadMultiplier,
+      position: { x: position.x, z: position.z },
+      speedMps,
+    });
+
+    const cameraOffset = this.lookAheadState.offset;
+    const vesselScreenX = -cameraOffset.x;
+    const vesselScreenZ = -cameraOffset.z;
+    this.environmentRotationGroup.position.set(-cameraOffset.x, 0, -cameraOffset.z);
+
     if (this.followShip) {
-      this.vesselMesh.position.set(0, 0.1, 0);
+      this.vesselMesh.position.set(vesselScreenX, 0.1, vesselScreenZ);
       this.vesselMesh.rotation.z = 0;
       this.environmentTranslationGroup.position.set(-position.x, 0, -position.z);
       this.environmentRotationGroup.rotation.set(0, -rotationY, 0);
     } else {
-      this.vesselMesh.position.set(0, 0.1, 0);
+      this.vesselMesh.position.set(vesselScreenX, 0.1, vesselScreenZ);
       this.vesselMesh.rotation.z = rotationY;
       this.environmentTranslationGroup.position.set(-position.x, 0, -position.z);
       this.environmentRotationGroup.rotation.set(0, 0, 0);
@@ -429,5 +466,10 @@ export class RenderingEngine {
   public render() {
     this.updateZoomTransition();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private resetCameraLookAhead() {
+    this.lookAheadState = createInitialCameraLookAheadState();
+    this.environmentRotationGroup.position.set(0, 0, 0);
   }
 }

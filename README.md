@@ -1,344 +1,232 @@
 # Browser Vessel Maneuvering Simulator
 
-This repository is an in-progress browser-based simulator for boats and sea vessels maneuvering under power. The long-term goal is a realistic low-speed and docking simulator.
+This repository is a browser-based powered-vessel maneuvering simulator built around a local JavaScript port of `pymaneuvering`.
 
-The project combines:
+The README is primarily an orientation document for AI coding agents. Agents should read this file first to understand the current project shape before making changes.
 
-- A browser app built with Vite, TypeScript, and Three.js
-- A JavaScript port of the `pymaneuvering` physics library under `lib/jsmaneuvering`
-- The original Python `pymaneuvering` reference implementation under `lib/pymaneuvering`
+If you are an AI agent and you make an important architectural or simulator-behavior change that future agents should know about, update this README in the same task. Do not try to document every small tweak here; keep it focused on project purpose, architecture, major runtime behavior, and important constraints.
 
-For this project, `pymaneuvering` is the golden standard.
+## Core Intent
 
----
+The long-term goal is a realistic low-speed and docking simulator.
 
-## 🛑 CRITICAL DIRECTIVES FOR AI AGENTS
-**Read these rules before executing any code changes:**
+Today, the app already includes:
 
-1. **Protect Forward-Motion Physics:** Forward-motion behavior in `pymaneuvering` is considered correct and well-tested. Do not change `pymaneuvering` or `jsmaneuvering` forward-motion logic or tests unless the user explicitly asks for it and provides a very strong reason.
-2. **Backward/Astern Physics:** Astern motion may still contain bugs (like negative damping) and is an acceptable area for investigation and fixes, provided forward-motion tests remain unchanged.
-3. **NO `mathjs` or Memory Allocation:** To maintain 60 FPS without Garbage Collection stutters, this project strictly uses **`gl-matrix`** for all linear algebra. Do not install or use `mathjs`, `numericjs`, or write math that returns new arrays inside the `jsmaneuvering` physics loop. Always use `gl-matrix` `out` parameters (e.g., `vec3.add(out, a, b)`).
-4. **Floating-Point Assertions:** Because V8 JS and Python handle floating-point math slightly differently, use approximation matchers (e.g., Jest's `expect().toBeCloseTo()`) for all physics test assertions.
+- A top-down Three.js simulator view
+- Throttle and steering controls
+- Keyboard control support for both axes
+- Touchscreen-friendly slider layout and pinch zoom
+- Multiple vessel profiles with live vessel switching
+- Vessel-specific profile data beyond a simple physics model enum
+- Pivot-point visualization and follow-ship view options
 
----
+## Architecture At A Glance
 
-## Project Goal
+Think of the repository as three layers:
 
-The current app is a simple top-down powered-vessel simulator:
+1. `lib/pymaneuvering`
+   Python reference implementation. Treat this as the golden standard.
+2. `lib/jsmaneuvering`
+   Browser-usable JavaScript port of the reference library.
+3. `src/` plus `lib/boat-controller.ts`
+   The actual simulator app: UI, controls, rendering, vessel profiles, and integration glue.
 
-- A vessel profile defines dimensions, assets, and control limits
-- The browser UI exposes a throttle slider
-- `BoatController` converts game controls into physics-engine inputs
-- `RenderingEngine` visualizes the vessel and follows it with an orthographic camera
+Most product work should happen in the app layer, not in the core physics port.
 
-The intended direction is a realistic docking simulator, so future work will likely include:
+## Critical Directives For AI Agents
 
-- Better vessel visuals and loading of 3D assets
-- Rudder/steering UI and richer helm/engine controls
-- Multiple vessel profiles
-- Harbor/dock geometry, collision handling, and aids to maneuvering
-- Environmental effects and low-speed handling improvements
+1. Protect forward-motion physics. Forward maneuvering behavior in `pymaneuvering` and `jsmaneuvering` is treated as correct unless the user explicitly asks for a well-justified change.
+2. Astern behavior is a safer place for investigation. Reverse-motion fixes are acceptable when backed by evidence and tests.
+3. Do not introduce `mathjs` or allocation-heavy math in the physics loop. The project uses `gl-matrix` conventions to avoid GC pressure and keep runtime smooth.
+4. Use approximate assertions for physics tests. JS and Python floating-point results will not always match exactly.
+5. When the simulator behaves strangely, suspect control scaling, units, sign conventions, coordinate mapping, or rendering integration before changing core physics.
 
-## Technology Stack
+## Current Runtime Flow
 
-- Runtime/app: TypeScript, native ESM, Vite
-- Rendering: Three.js
-- Physics: local JS port of `pymaneuvering` in `lib/jsmaneuvering`
-- Reference implementation: Python package in `lib/pymaneuvering`
-- Testing: Jest + `ts-jest` for TS/JS tests
-- Math dependency used by the physics port: `gl-matrix` (Strictly enforced)
+1. `index.html` defines the canvas mount plus HUD panels for throttle, steering, stats, and settings.
+2. `src/main.ts` creates:
+   - `RenderingEngine`
+   - `BoatController`
+   - two `KeyboardAxisController` instances for steering and throttle
+3. A selected `VesselProfile` is loaded from `src/vessels/`.
+4. UI sliders and keyboard controllers both feed normalized control values in `[-1, 1]`.
+5. `BoatController` converts normalized controls into physics inputs:
+   - throttle to `nps`
+   - steering to `delta`
+6. `BoatController.update(dt)` calls `vessel.pstep(...)`, updates world state, and exposes render-space position, heading, speed, RPM, and pivot point.
+7. `RenderingEngine` visualizes the active vessel, environment, zoom state, and optional ship-follow/pivot-point overlays.
 
-## Physics Models
+## Controls And Interaction
 
-`lib/jsmaneuvering` supports two maneuvering-model families:
+Currently implemented controls: 
 
-- MMG
-- Abkowitz
+- Throttle slider: vertical range input
+- Steering slider: horizontal range input
+- Keyboard steering:
+  - `A` / `D` hold to move the helm
+  - `W` or `S` centers steering
+- Keyboard throttle:
+  - `Numpad8` / `Numpad2` hold to change throttle
+  - double-tap `Numpad8` or `Numpad2` snaps toward full ahead / full astern
+  - `Numpad5` centers throttle
+- Double-clicking either slider also recenters that axis through the same motion logic
+- Mouse wheel zoom is supported
+- Two-finger pinch zoom is supported
+- Mobile/coarse-pointer layouts use tighter HUD spacing and a more zoomed-out default framing
 
-For the simulator app in this repository, only the MMG model is currently used. When working on `src/`, `lib/boat-controller.ts`, runtime behavior, or simulator-facing tests, assume the active physics path is MMG unless the user explicitly asks to expand simulator support.
+## Vessel Profiles
+
+Vessel profiles are no longer just a lightweight wrapper around a physics model constant.
+
+The current `VesselProfile` contract in `src/vessels/types.ts` includes:
+
+- Identity:
+  - `id`, `name`
+- Camera defaults:
+  - `defaultZoom`, `defaultZoomMobile`
+- Physics source:
+  - `physicsModel` for predefined calibrated vessels
+  - `physicsVesselData` for fully custom vessel definitions
+  - `physicsOverrides` for patching calibrated defaults
+- Dimensions:
+  - `dimensions.length`, `dimensions.beam`
+- Engine:
+  - `engine.maxEngineRPM`
+  - `engine.reductionGearRatio`
+  - `engine.reductionGearRatioAstern`
+- Environment:
+  - `environment.waterDepth`
+- Steering:
+  - `steering.maxRudderAngleRads`
+- Assets:
+  - `assets.model3DPath`
+  - `assets.sprite2DPath`
+
+Current simulator vessels:
+
+- `src/vessels/kvlcc2-full-scale.ts`
+  - KVLCC2 full-scale benchmark/prototype using full-scale geometry with the benchmark MMG coefficient set
+- `src/vessels/kvlcc2-l64.ts`
+  - KVLCC2-L64 1:5 benchmark tanker using calibrated MMG data plus project-specific overrides
+- `src/vessels/j105.ts`
+  - J/105 sailboat using fully custom MMG vessel data
+- `src/vessels/navy-44.ts`
+  - Navy 44 Mk II sailboat using a conservative custom MMG baseline derived from Navy/ORC technical data plus sailboat coefficient ranges
+
+`src/vessels/index.ts` exposes `availableVessels` and `getVesselById(...)`, and `src/main.ts` wires that into the vessel selector.
+
+## Physics Notes
+
+`lib/jsmaneuvering` supports both MMG and Abkowitz model families, but the simulator app currently uses the MMG path only.
+
+`BoatController` creates the active physics vessel in one of two ways:
+
+- from a predefined `physicsModel`
+- from full `physicsVesselData` supplied by the profile
+
+For reverse thrust, `BoatController` uses `engine.reductionGearRatioAstern` when present, so ahead and astern propeller RPM limits can differ by vessel.
+
+`BoatController` also reads `environment.waterDepth` from the active profile when present. This matters for deep-draft vessels because the MMG model rejects water depths shallower than draft and applies shallow-water corrections when a finite depth is supplied.
+
+## Coordinate Systems
+
+This is a common source of bugs.
+
+`jsmaneuvering` uses maritime/world coordinates:
+
+- `x`: north / forward
+- `y`: east / starboard
+- `psi`: heading
+
+The simulator maps them into the Three.js scene in `lib/boat-controller.ts`:
+
+- render `position.x = east`
+- render `position.z = -north`
+- render `rotationY = -psi`
+
+If the vessel looks mirrored, rotated incorrectly, or moves in the wrong apparent direction, inspect this mapping before touching physics formulas.
+
+## Rendering Layer
+
+`src/rendering-engine.ts` is responsible only for visualization.
+
+Current rendering behavior:
+
+- orthographic top-down camera
+- water plane plus buoy grid reference field
+- sprite-based vessel rendering
+- adaptive default zoom based on vessel length and viewport type
+- smooth zoom transitions when switching vessels
+- optional follow-ship rotation mode
+- optional pivot-point marker with adjustable opacity
+- user-adjustable vessel opacity and UI opacity
+
+Even though `VesselProfile` includes `model3DPath`, the runtime currently loads `sprite2DPath` only. `model3DPath` is reserved for future rendering work.
 
 ## Repository Map
 
 - `src/main.ts`
-  - Browser entry point
-  - Wires DOM controls to the simulator
-  - Runs the animation loop
+  Main browser entry point and runtime wiring.
 - `src/rendering-engine.ts`
-  - Three.js scene setup
-  - Orthographic camera
-  - Water plane, buoy grid, vessel visual, camera follow
-- `src/vessels/types.ts`
-  - `VesselProfile` interface
-- `src/vessels/tanker.ts`
-  - Current vessel definition
-  - Uses `VTYPE.KVLCC2_L64` from `jsmaneuvering`
+  Three.js rendering, camera behavior, zoom, and overlays.
+- `src/keyboard-axis-controller.ts`
+  Shared keyboard input logic for smooth hold/snap/center axis control.
+- `src/zoom.ts`
+  Default framing helpers for vessel length and mobile/coarse-pointer viewports.
+- `src/vessels/`
+  Declarative vessel profiles and vessel registry.
 - `lib/boat-controller.ts`
-  - Main app-level adapter between UI/game code and the physics engine
-  - Owns persistent vessel state (`uvr`, `pos`, `psi`)
-  - Translates human limits (Max Engine RPM, Gear Ratios) into scientific limits (`nps`).
-  - Maps normalized controls to `nps` and `delta`
-  - Maps maritime coordinates into Three.js coordinates
+  App-level adapter between UI controls and `jsmaneuvering`.
 - `lib/jsmaneuvering`
-  - JavaScript port of the physics library
-  - Contains its own README, source, and unit tests
+  JavaScript physics port and tests.
 - `lib/pymaneuvering`
-  - Python reference implementation
-  - Contains its own README, source, and pytest suite
-- `tests/boat-controller.test.ts`
-  - App-specific integration-ish test for the wrapper/controller layer
-- `public/assets`
-  - Vessel assets served by Vite
+  Python reference implementation and tests.
+- `tests/`
+  Simulator-layer tests.
+- `public/assets/vessels/`
+  Vessel sprites and related assets served by Vite.
 
-## Current Runtime Flow
+## Tests That Matter
 
-1. `index.html` creates the canvas mount and HUD.
-2. `src/main.ts` creates:
-   - `RenderingEngine`
-   - `BoatController` (Injected with a `VesselProfile` like `tanker`)
-3. The throttle slider emits a normalized value in `[-1, 1]`.
-4. `BoatController.setControls(throttle, steering)` stores normalized control inputs.
-5. On each animation frame:
-   - `dt` is computed and clamped to `0.1 s`
-   - `BoatController.update(dt)` calculates actual `nps` using the profile's Engine RPM and Gear Ratio, then calls `vessel.pstep(...)`
-   - HUD values are updated from controller state
-   - `RenderingEngine.updateVesselTransform(...)` updates the vessel mesh
-   - Three.js renders the scene
-
-## Physics API Used by the App
-
-The JS app currently uses the `Vessel` dispatcher from `lib/jsmaneuvering/src/vessel.js`.
-
-Key exports:
-
-- `VTYPE`
-  - `KVLCC2_L64`
-  - `GMS_LIKE`
-- `IntegrationMode`
-  - `TRAPEZOIDAL`
-  - `RK4`
-- `Vessel`
-  - `new Vessel({ new_from: VTYPE.KVLCC2_L64 })`
-  - Methods:
-    - `dynamics(args)`
-    - `step(args)`
-    - `pstep(args)`
-    - `nps_from_u(u)`
-
-The simulator currently uses the MMG path only, with `KVLCC2_L64`. Even though `jsmaneuvering` also supports Abkowitz vessels, that model is not wired into the simulator runtime today.
-
-### `pstep(...)` contract
-
-For MMG vessels the app calls:
-
-```ts
-const [newUvr, newEta] = vessel.pstep({
-  X: uvr,
-  pos,
-  dT: dt,
-  nps,
-  delta,
-  psi,
-  water_depth: 15.0,
-});
-```
-
-Where:
-
-- `X = [u, v, r]`
-  - surge velocity [m/s]
-  - sway velocity [m/s]
-  - yaw rate [rad/s]
-- `pos = [x, y]`
-  - northing, easting [m]
-- `psi`
-  - heading [rad]
-- `nps`
-  - propeller revolutions per second (Calculated in BoatController)
-- `delta`
-  - rudder angle [rad]
-
-Return value:
-
-- `newUvr = [u, v, r]`
-- `newEta = [x, y, psi]`
-
-## Coordinate Systems
-
-This matters a lot when changing rendering or controls.
-
-`jsmaneuvering` uses maritime/world coordinates:
-
-- `x`: North / forward
-- `y`: East / starboard
-- `psi`: heading
-
-The app maps them into the Three.js scene in `BoatController`:
-
-- Three.js `position.x = East = eta[1]`
-- Three.js `position.z = -North = -eta[0]`
-- Three.js `rotationY = -psi`
-
-`RenderingEngine` then applies the heading onto the flat vessel mesh using `mesh.rotation.z`, because the mesh is laid down onto the XZ plane with a `-PI/2` X rotation.
-
-If visuals look rotated or mirrored, check the mapping here first before touching the physics.
-
-## Vessel Profile Contract
-
-The current app-level abstraction for a ship is `VesselProfile` in `src/vessels/types.ts`.
-
-It currently includes:
-
-- Identity
-  - `id`, `name`
-- Physics
-  - `physicsModel`
-- Dimensions
-  - `length`, `beam` (Used by RenderEngine to scale SVGs and Meshes)
-- Engine
-  - `maxEngineRPM`
-  - `reductionGearRatio`
-- Steering
-  - `maxRudderAngleRads`
-- Assets
-  - `model3DPath`
-  - `sprite2DPath`
-
-To add a new vessel, the current pattern is:
-
-1. Create a new file in `src/vessels/`
-2. Point `physicsModel` at an existing `VTYPE`
-3. Add assets under `public/assets/vessels/...`
-4. Instantiate the new profile from `src/main.ts`
-
-## Rendering Layer Notes
-
-Current rendering is intentionally simple:
-
-- Orthographic top-down camera
-- Blue plane for water
-- Red buoy grid for scale and orientation
-- Vessel drawn from a sprite if available, otherwise a gray fallback plane
-- Camera tracks the vessel in X/Z
-
-This means most current realism comes from the physics, not the graphics.
-
-The code already includes a `model3DPath`, but `RenderingEngine` currently loads only `sprite2DPath`. If you add 3D model loading, keep the physics/render separation intact:
-
-- `BoatController` should remain the source of truth for physical state
-- `RenderingEngine` should only visualize that state
-
-## Tests And What They Mean
-
-### Browser app tests
+Top-level simulator tests:
 
 - `tests/boat-controller.test.ts`
-  - Verifies that `BoatController` correctly wraps `jsmaneuvering`
-  - Verifies coordinate mapping from physics space into render space
-  - Verifies control clamping and Gear Ratio/RPM translations.
+  Covers controller integration, coordinate mapping, pivot-point mapping, prop-walk-related astern behavior, custom vessel data usage, and astern gearbox handling.
+- `tests/keyboard-axis-controller.test.ts`
+  Covers hold-to-ramp, double-tap snap, centering, and opposing-key behavior.
+- `tests/zoom.test.ts`
+  Covers viewport-dependent default zoom behavior.
 
-### JS physics tests
+Physics-port tests:
 
 - `lib/jsmaneuvering/tests/mmg.test.js`
-  - Checks MMG `dynamics`, `step`, `pstep`, `nps_from_u`
-  - Checks current, wind, shallow-water, and zero-velocity scenarios
-  - Includes reverse-motion safeguards
 - `lib/jsmaneuvering/tests/abkowitz.test.js`
-  - Covers the library's Abkowitz support
 - `lib/jsmaneuvering/tests/calibration.test.js`
-  - Checks MMG calibration from a minimal vessel description
 
-### Python reference tests
+Reference Python tests:
 
 - `lib/pymaneuvering/tests/test_mmg_dynamics.py`
 - `lib/pymaneuvering/tests/test_abkowitz_dynamics.py`
 - `lib/pymaneuvering/tests/test_calibration.py`
 - `lib/pymaneuvering/tests/test_utils.py`
 
-These Python tests are important because they define the expected reference behavior for the port.
+## Safe Vs Risky Change Areas
 
-## Development Rules For AI Agents
+Generally safe:
 
-Use these rules unless the user explicitly asks for something else.
+- UI and HUD work
+- control wiring
+- vessel switching
+- vessel profile additions and tuning
+- rendering and camera behavior
+- app-layer tests
+- reverse-motion improvements with evidence
 
-### 1. Treat `pymaneuvering` as authoritative
-
-- If the browser simulator behaves strangely, first suspect:
-  - input scaling
-  - unit conversion
-  - coordinate mapping
-  - render transform bugs
-  - app integration bugs
-- Only change core `jsmaneuvering` physics when there is strong evidence of a real porting bug.
-- If a change touches forward-motion behavior, compare it against the Python reference first.
-
-### 2. Do not casually edit forward-motion physics or forward-motion tests
-
-This is the highest-priority project constraint.
-
-- Do not alter forward-motion MMG behavior in `lib/pymaneuvering`
-- Do not alter forward-motion MMG behavior in `lib/jsmaneuvering`
-- Do not weaken or rewrite forward-motion tests to make changes pass
-
-Safe default:
-
-- Assume forward propulsion and forward maneuvering are correct
-- Assume backward/astern behavior may still need work
-
-### 3. Prefer changing the simulator layer before the physics layer
-
-Usually safer places to work:
-
-- `src/main.ts`
-- `src/rendering-engine.ts`
-- `src/vessels/*.ts`
-- `lib/boat-controller.ts`
-- `index.html`
-- `src/style.css`
-
-Examples:
-
-- Add new HUD data
-- Add steering controls
-- Add camera modes
-- Add vessel switching
-- Add scene props or dock geometry
-- Add app-level helpers for autopilot, assistance, or replay
-
-### 4. Keep physics and rendering decoupled
-
-- `BoatController` should remain a thin adapter around the physics engine
-- `RenderingEngine` should not own simulation state
-- Vessel profiles should stay declarative
-
-### 5. Add tests when behavior changes
-
-If you modify:
-
-- coordinate mapping: update/add `tests/boat-controller.test.ts`
-- app integration with physics: add controller tests
-- reverse-motion physics: add focused JS tests in `lib/jsmaneuvering/tests`
-
-If you ever change a `jsmaneuvering` formula, you should have a comparison story against the Python reference.
-
-## Known Safe/Unsafe Change Areas
-
-### Generally safe
-
-- UI controls and HUD
-- camera behavior
-- scene rendering
-- asset loading
-- new vessel profile files
-- app-level state handling
-- tests for new simulator features
-- reverse/astern-motion fixes with evidence
-
-### High-risk
+High risk:
 
 - `lib/jsmaneuvering/src/mmg/*`
 - `lib/pymaneuvering/src/pymaneuvering/mmg/*`
-- any code path that changes forward-motion MMG results
-- modifying existing golden-reference expectations without justification
+- any change that alters established forward-motion MMG behavior
 
 ## Commands
 
@@ -360,38 +248,18 @@ Run JS/TS tests:
 npm test
 ```
 
-Notes:
+Generate a turning-circle report:
 
-- The Jest config runs:
-  - top-level app tests in `tests/`
-  - embedded JS physics tests in `lib/jsmaneuvering/tests/`
-- Python tests in `lib/pymaneuvering/tests/` are not run by `npm test`
+```bash
+npm run turning-circle
+```
 
-## Practical Guidance For Future Feature Work
+## Practical Guidance For Future Agents
 
-When adding a feature, use this checklist:
+When adding or changing a feature:
 
-1. Identify whether the feature is:
-   - rendering/UI
-   - controller/integration
-   - vessel-definition
-   - physics-core
-2. If it is not obviously physics-core, keep the change out of `jsmaneuvering`.
-3. If it touches vessel motion, verify whether the issue is:
-   - bad input scaling
-   - wrong units
-   - wrong sign
-   - wrong coordinate transform
-   - bad asset orientation
-4. If the issue only appears in astern motion, a `jsmaneuvering` fix may be appropriate.
-5. Protect behavior with tests before and after the change when possible.
-
-## Summary
-
-Think of this repository as three layers:
-
-1. `lib/pymaneuvering`: the Python reference and golden standard
-2. `lib/jsmaneuvering`: the browser-usable JS port that should stay aligned with the reference, especially in forward motion
-3. `src/` + `lib/boat-controller.ts`: the actual simulator app layer where most ongoing product work should happen
-
-The library layer supports both MMG and Abkowitz, but the simulator app currently exercises MMG only. If you are unsure where to make a change, prefer the app layer first and treat forward-motion physics as protected.
+1. Decide whether it belongs in rendering/UI, control integration, vessel definitions, or physics core.
+2. Prefer the app layer unless there is strong evidence of a real physics-port problem.
+3. If motion looks wrong, check input scaling, units, sign conventions, and coordinate mapping first.
+4. Add or update tests when runtime behavior changes.
+5. If your work changes the simulator architecture, feature boundaries, vessel-profile contract, or other context future agents should know, update this README before finishing.

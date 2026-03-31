@@ -4,7 +4,7 @@ const degToRad = (degrees: number): number => degrees * (Math.PI / 180);
 
 export const j105: VesselProfile = {
   id: 'j105_deep_keel',
-  name: 'J/105',
+  name: 'J/105 Sailboat (10.5m / 34.5ft)',
   defaultZoom: 1.6,
   defaultZoomMobile: 1.6,
   physicsVesselData: {
@@ -88,7 +88,7 @@ export const j105: VesselProfile = {
     maxRudderAngleRads: degToRad(35),
   },
   assets: {
-    model3DPath: './assets/vessels/sailboat/model.glb',
-    sprite2DPath: './assets/vessels/sailboat/j105-sprite.png',
+    model3DPath: './assets/vessels/j105/model.glb',
+    sprite2DPath: './assets/vessels/j105/j105-sprite.png',
   },
 };

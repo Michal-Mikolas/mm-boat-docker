@@ -18,6 +18,9 @@ export interface VesselProfile {
   steering: {
     maxRudderAngleRads: number;
   };
+  environment?: {
+    waterDepth: number;
+  };
   assets: {
     model3DPath: string;
     sprite2DPath: string;

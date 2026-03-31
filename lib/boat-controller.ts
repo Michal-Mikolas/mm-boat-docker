@@ -7,6 +7,8 @@ import { VesselProfile } from '../src/vessels/types.js';
  * and the underlying jsmaneuvering physics engine.
  */
 export class BoatController {
+  private static readonly DEFAULT_WATER_DEPTH_METERS = 15.0;
+
   public position = { x: 0, y: 0, z: 0 };
   public pivotPoint: { x: number, y: number, z: number } | null = null;
   public rotationY = 0;
@@ -72,9 +74,11 @@ export class BoatController {
     const nps = this.throttle * maxPropellerNPS;
     this.currentEngineRPM = this.throttle * this.profile.engine.maxEngineRPM;
     const delta = this.steering * this.profile.steering.maxRudderAngleRads;
+    const waterDepth = this.profile.environment?.waterDepth
+      ?? BoatController.DEFAULT_WATER_DEPTH_METERS;
 
-    // Call the physics engine's pstep() method
-    // We use a default water_depth of 15m (typical for tanker tests)
+    // Call the physics engine's pstep() method using a vessel-specific depth
+    // when provided so deep-draft vessels can run in realistic water.
     const [new_uvr, new_eta] = this.vessel.pstep({
       X: this.uvr,
       pos: this.pos,
@@ -82,7 +86,7 @@ export class BoatController {
       nps,
       delta,
       psi: this.psi,
-      water_depth: 15.0 
+      water_depth: waterDepth,
     });
 
     // Update internal state

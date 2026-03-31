@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 1024">
+  <defs>
+    <linearGradient id="deck" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f4f1e8" />
+      <stop offset="100%" stop-color="#d7d1c2" />
+    </linearGradient>
+    <linearGradient id="hull" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#163f79" />
+      <stop offset="100%" stop-color="#0a2443" />
+    </linearGradient>
+  </defs>
+  <path d="M128 18 C167 58 205 173 218 341 L218 706 C207 846 175 946 128 1006 C81 946 49 846 38 706 L38 341 C51 173 89 58 128 18 Z" fill="url(#hull)" />
+  <path d="M128 74 C158 105 186 196 196 343 L196 689 C187 813 163 903 128 958 C93 903 69 813 60 689 L60 343 C70 196 98 105 128 74 Z" fill="url(#deck)" />
+  <path d="M128 142 L154 664 L128 885 L102 664 Z" fill="#efe7d3" opacity="0.98" />
+  <path d="M128 224 L177 621 L128 764 L79 621 Z" fill="#d9cfb5" opacity="0.95" />
+  <rect x="122" y="150" width="12" height="558" rx="6" fill="#3e3125" opacity="0.85" />
+  <rect x="104" y="624" width="48" height="66" rx="12" fill="#4b6170" opacity="0.85" />
+  <path d="M128 132 L141 156 L128 180 L115 156 Z" fill="#c13d28" />
+  <path d="M128 950 L136 980 L128 1002 L120 980 Z" fill="#2f1f17" opacity="0.8" />
+  <path d="M72 702 Q128 760 184 702" fill="none" stroke="#153157" stroke-width="10" stroke-linecap="round" opacity="0.6" />
+  <path d="M89 330 Q128 288 167 330" fill="none" stroke="#1c4f92" stroke-width="8" stroke-linecap="round" opacity="0.55" />
+  <ellipse cx="128" cy="692" rx="20" ry="52" fill="#0d1b2d" opacity="0.75" />
+</svg>

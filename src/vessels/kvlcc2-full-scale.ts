@@ -1,0 +1,95 @@
+import { VesselProfile } from './types.js';
+
+const degToRad = (degrees: number): number => degrees * (Math.PI / 180);
+
+export const kvlcc2FullScale: VesselProfile = {
+  id: 'kvlcc2_full_scale',
+  name: 'KVLCC2 Tanker (full scale, 320m / 1050 ft)',
+  defaultZoom: 0.6,
+  defaultZoomMobile: 0.6,
+  physicsVesselData: {
+    // Full-scale KVLCC2 benchmark/prototype using benchmark MMG coefficients
+    // together with full-scale geometry, mass properties, and propulsion.
+    C_b: 0.810,
+    Lpp: 320.0,
+    B: 58.0,
+    d: 20.8,
+    displ: 312622.0,
+    w_P0: 0.35,
+    J_int: 0.4,
+    J_slo: -0.5,
+    x_G: 11.2,
+    x_P: -160.0,
+    D_p: 9.86,
+    k_0: 0.2931,
+    k_1: -0.2753,
+    k_2: -0.1359,
+    C_1: 2.0,
+    C_2_plus: 1.6,
+    C_2_minus: 1.1,
+    l_R: -0.710,
+    gamma_R_plus: 0.640,
+    gamma_R_minus: 0.395,
+    eta: 0.626,
+    kappa: 0.50,
+    // MMG literature commonly uses the movable rudder area excluding the horn.
+    A_R: 112.5,
+    epsilon: 1.09,
+    f_alpha: 2.747,
+    rho: 1025.0,
+    rho_air: 1.225,
+    // Wind areas scaled from the L64 benchmark profile by lambda^2.
+    A_Fw: 6000.0,
+    A_Lw: 18000.0,
+    t_R: 0.387,
+    t_P: 0.220,
+    x_H_dash: -0.464,
+    m_x_dash: 0.022,
+    m_y_dash: 0.223,
+    R_0_dash: 0.022,
+    X_vv_dash: -0.040,
+    X_vr_dash: 0.002,
+    X_rr_dash: 0.011,
+    X_vvvv_dash: 0.771,
+    Y_v_dash: -0.315,
+    Y_r_dash: 0.083,
+    Y_vvv_dash: -1.607,
+    Y_vvr_dash: 0.379,
+    Y_vrr_dash: -0.391,
+    Y_rrr_dash: 0.008,
+    N_v_dash: -0.137,
+    N_r_dash: -0.049,
+    N_vvv_dash: -0.030,
+    N_vvr_dash: -0.294,
+    N_vrr_dash: 0.055,
+    N_rrr_dash: -0.013,
+    J_z_dash: 0.011,
+    a_H: 0.312,
+    prop_walk_handedness: 'RH',
+    prop_walk_ahead_coeff: 0.0,
+    prop_walk_astern_coeff: 0.10,
+    prop_walk_decay_j0: 0.30,
+    prop_walk_decay_power: 2.0,
+    prop_walk_yaw_arm: 0.0,
+  },
+  dimensions: {
+    length: 320.0,
+    beam: 58.0,
+  },
+  engine: {
+    // Design rpm is high-80s; cap full ahead at a plausible direct-drive
+    // slow-speed diesel maximum.
+    maxEngineRPM: 110,
+    reductionGearRatio: 1.0,
+  },
+  steering: {
+    maxRudderAngleRads: degToRad(35),
+  },
+  environment: {
+    waterDepth: 100.0,
+  },
+  assets: {
+    model3DPath: './assets/vessels/kvlcc2-full-scale/model.glb',
+    sprite2DPath: './assets/vessels/kvlcc2-full-scale/sprite.png',
+  },
+};

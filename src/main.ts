@@ -17,7 +17,7 @@ const pivotPointOpacityInput = document.getElementById('pivot-point-opacity') as
 const vesselOpacityInput = document.getElementById('vessel-opacity') as HTMLInputElement;
 const uiOpacityInput = document.getElementById('ui-opacity') as HTMLInputElement;
 const vesselSelect = document.getElementById('vessel-select') as HTMLSelectElement;
-const defaultVessel = availableVessels.find((vessel) => vessel.id === 'j105_deep_keel') ?? availableVessels[0];
+const defaultVessel = availableVessels.find((vessel) => vessel.id === 'navy_44_mk2') ?? availableVessels[0];
 
 if (!container) {
   throw new Error("Could not find '#app' container in DOM.");

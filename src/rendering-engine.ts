@@ -37,7 +37,7 @@ export class RenderingEngine {
   private pinchStartDistance: number | null = null;
   private pinchStartZoomScale = 1;
   private lookAheadEnabled = true;
-  private lookAheadMultiplier = 0.2;
+  private lookAheadMultiplier = 0.4;
   private lookAheadState = createInitialCameraLookAheadState();
 
   constructor(container: HTMLElement) {
@@ -431,6 +431,7 @@ export class RenderingEngine {
     this.lookAheadState = updateCameraLookAheadState(this.lookAheadState, {
       dtSeconds,
       enabled: this.lookAheadEnabled,
+      frustumAspect: this.container.clientWidth / this.container.clientHeight,
       frustumSize: this.frustumSize,
       mode: this.followShip ? 'follow-rotation' : 'world-motion',
       multiplier: this.lookAheadMultiplier,

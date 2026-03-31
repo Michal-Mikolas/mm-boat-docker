@@ -14,6 +14,7 @@ export interface CameraLookAheadState {
 export interface CameraLookAheadUpdateInput {
   dtSeconds: number;
   enabled: boolean;
+  frustumAspect: number;
   frustumSize: number;
   mode: CameraLookAheadMode;
   multiplier: number;
@@ -23,7 +24,7 @@ export interface CameraLookAheadUpdateInput {
 
 const METERS_PER_SECOND_TO_KNOTS = 1.94384;
 const LOOK_AHEAD_DISTANCE_PER_EFFECTIVE_STRENGTH = 0.1;
-const LOOK_AHEAD_MAX_FRACTION_OF_FRUSTUM = 0.18;
+const LOOK_AHEAD_SCREEN_MARGIN = 0.95;
 const LOOK_AHEAD_SMOOTH_TIME_SECONDS = 0.2;
 const MIN_WORLD_MOTION_DELTA = 1e-4;
 
@@ -45,21 +46,25 @@ export function getEffectiveLookAheadStrength(speedMps: number, multiplier: numb
 
 export function getLookAheadDistance(
   frustumSize: number,
+  frustumAspect: number,
   effectiveStrength: number
 ): number {
   if (!Number.isFinite(frustumSize) || frustumSize <= 0) {
     return 0;
   }
 
+  const safeAspect = Number.isFinite(frustumAspect) && frustumAspect > 0
+    ? frustumAspect
+    : 1;
   const safeEffectiveStrength = Number.isFinite(effectiveStrength)
     ? Math.max(0, effectiveStrength)
     : 0;
-  const distanceFraction = Math.min(
-    safeEffectiveStrength * LOOK_AHEAD_DISTANCE_PER_EFFECTIVE_STRENGTH,
-    LOOK_AHEAD_MAX_FRACTION_OF_FRUSTUM
-  );
+  const desiredDistance = frustumSize
+    * safeEffectiveStrength
+    * LOOK_AHEAD_DISTANCE_PER_EFFECTIVE_STRENGTH;
+  const maxDistance = getMaxVisibleLookAheadDistance(frustumSize, safeAspect);
 
-  return frustumSize * distanceFraction;
+  return Math.min(desiredDistance, maxDistance);
 }
 
 export function getFollowRotationLookAheadTarget(
@@ -110,7 +115,7 @@ export function updateCameraLookAheadState(
   );
   const effectiveStrength = getEffectiveLookAheadStrength(input.speedMps, input.multiplier);
   const distance = input.enabled
-    ? getLookAheadDistance(input.frustumSize, effectiveStrength)
+    ? getLookAheadDistance(input.frustumSize, input.frustumAspect, effectiveStrength)
     : 0;
   const targetOffset = input.enabled
     ? input.mode === 'follow-rotation'
@@ -174,4 +179,13 @@ function dampPlanarVector(
 
 function lerp(start: number, end: number, alpha: number): number {
   return start + (end - start) * alpha;
+}
+
+function getMaxVisibleLookAheadDistance(
+  frustumSize: number,
+  frustumAspect: number
+): number {
+  const halfHeight = frustumSize / 2;
+  const halfWidth = (frustumSize * frustumAspect) / 2;
+  return Math.min(halfHeight, halfWidth) * LOOK_AHEAD_SCREEN_MARGIN;
 }

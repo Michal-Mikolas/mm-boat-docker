@@ -63,7 +63,7 @@ if (lookAheadInput) {
 }
 
 if (lookAheadMultiplierInput) {
-  lookAheadMultiplierInput.value = "0.2";
+  lookAheadMultiplierInput.value = "0.4";
 }
 
 if (showPivotPointInput) {
@@ -198,14 +198,14 @@ function applySimulationSettings(): void {
   const lookAheadEnabled = lookAheadInput ? lookAheadInput.checked : true;
   const rawLookAheadMultiplier = lookAheadMultiplierInput
     ? parseFloat(lookAheadMultiplierInput.value)
-    : 0.2;
+    : 0.4;
   const showPivotPoint = showPivotPointInput ? showPivotPointInput.checked : false;
   const rawPivotPointOpacity = pivotPointOpacityInput ? parseFloat(pivotPointOpacityInput.value) : 0.2;
   const rawVesselOpacity = vesselOpacityInput ? parseFloat(vesselOpacityInput.value) : 0.8;
   const rawUiOpacity = uiOpacityInput ? parseFloat(uiOpacityInput.value) : 0.8;
   const lookAheadMultiplier = Number.isFinite(rawLookAheadMultiplier)
     ? Math.max(0, rawLookAheadMultiplier)
-    : 0.2;
+    : 0.4;
   const pivotPointOpacity = Number.isFinite(rawPivotPointOpacity) ? Math.min(1, Math.max(0, rawPivotPointOpacity)) : 0.2;
   const vesselOpacity = Number.isFinite(rawVesselOpacity) ? Math.min(1, Math.max(0, rawVesselOpacity)) : 0.8;
   const uiOpacity = Number.isFinite(rawUiOpacity) ? Math.min(1, Math.max(0, rawUiOpacity)) : 0.8;

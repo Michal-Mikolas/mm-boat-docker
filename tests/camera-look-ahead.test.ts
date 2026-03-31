@@ -21,6 +21,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.1,
       enabled: true,
+      frustumAspect: 16 / 9,
       frustumSize: 120,
       mode: 'world-motion',
       multiplier: 0.2,
@@ -31,6 +32,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.5,
       enabled: true,
+      frustumAspect: 16 / 9,
       frustumSize: 120,
       mode: 'world-motion',
       multiplier: 0.2,
@@ -38,7 +40,7 @@ describe('camera look-ahead helper', () => {
       speedMps: 5 / 1.94384,
     });
 
-    const fullDistance = getLookAheadDistance(120, 1.0);
+    const fullDistance = getLookAheadDistance(120, 16 / 9, 1.0);
 
     expect(state.offset.x).toBeGreaterThan(0);
     expect(state.offset.z).toBeCloseTo(0, 6);
@@ -52,6 +54,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.1,
       enabled: true,
+      frustumAspect: 16 / 9,
       frustumSize: 100,
       mode: 'world-motion',
       multiplier: 0.2,
@@ -62,6 +65,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.5,
       enabled: true,
+      frustumAspect: 16 / 9,
       frustumSize: 100,
       mode: 'world-motion',
       multiplier: 0.2,
@@ -74,6 +78,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.5,
       enabled: true,
+      frustumAspect: 16 / 9,
       frustumSize: 100,
       mode: 'world-motion',
       multiplier: 0.2,
@@ -87,7 +92,7 @@ describe('camera look-ahead helper', () => {
   });
 
   it('keeps follow-rotation look-ahead on the screen forward and astern axis only', () => {
-    const distance = getLookAheadDistance(120, 1.0);
+    const distance = getLookAheadDistance(120, 16 / 9, 1.0);
 
     expect(getFollowRotationLookAheadTarget(5 / 1.94384, distance)).toEqual({
       x: 0,
@@ -105,6 +110,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.1,
       enabled: true,
+      frustumAspect: 16 / 9,
       frustumSize: 120,
       mode: 'follow-rotation',
       multiplier: 0.2,
@@ -118,6 +124,7 @@ describe('camera look-ahead helper', () => {
     state = updateCameraLookAheadState(state, {
       dtSeconds: 0.1,
       enabled: false,
+      frustumAspect: 16 / 9,
       frustumSize: 120,
       mode: 'follow-rotation',
       multiplier: 0.2,
@@ -127,5 +134,10 @@ describe('camera look-ahead helper', () => {
 
     expect(state.offset.z).toBeGreaterThan(engagedOffset);
     expect(state.offset.z).toBeLessThan(0);
+  });
+
+  it('caps the look-ahead by the visible viewport extent instead of a small fixed fraction', () => {
+    expect(getLookAheadDistance(120, 16 / 9, 10)).toBeCloseTo(57, 6);
+    expect(getLookAheadDistance(120, 0.5, 10)).toBeCloseTo(28.5, 6);
   });
 });
